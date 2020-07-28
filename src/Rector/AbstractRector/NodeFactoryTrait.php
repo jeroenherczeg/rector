@@ -1,21 +1,25 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\AbstractRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\AbstractRector;
 
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Name;
 use PhpParser\Node\Name\FullyQualified;
-use Rector\PhpParser\Node\NodeFactory;
+use Rector\Core\PhpParser\Node\NodeFactory;
 
 /**
  * This could be part of @see AbstractRector, but decopuling to trait
@@ -52,9 +56,17 @@ trait NodeFactoryTrait
         return new StaticCall($class, $method, $args);
     }
 
-    protected function createClassConstant(string $class, string $constant): ClassConstFetch
+    /**
+     * @param Expr[] $exprsToConcat
+     */
+    protected function createConcat(array $exprsToConcat): ?Concat
     {
-        return $this->nodeFactory->createClassConstant($class, $constant);
+        return $this->nodeFactory->createConcat($exprsToConcat);
+    }
+
+    protected function createClassConstFetch(string $class, string $constant): ClassConstFetch
+    {
+        return $this->nodeFactory->createClassConstFetch($class, $constant);
     }
 
     protected function createNull(): ConstFetch
@@ -100,14 +112,16 @@ trait NodeFactoryTrait
     /**
      * @param mixed[] $arguments
      */
-    protected function createFunction(string $name, array $arguments = []): FuncCall
+    protected function createFuncCall(string $name, array $arguments = []): FuncCall
     {
+        $arguments = $this->createArgs($arguments);
+
         return new FuncCall(new Name($name), $arguments);
     }
 
     protected function createClassConstantReference(string $class): ClassConstFetch
     {
-        return $this->nodeFactory->createClassConstantReference($class);
+        return $this->nodeFactory->createClassConstReference($class);
     }
 
     protected function createPropertyAssignmentWithExpr(string $propertyName, Expr $expr): Assign
@@ -121,6 +135,15 @@ trait NodeFactoryTrait
      */
     protected function createMethodCall($variable, string $method, array $arguments = []): MethodCall
     {
+        return $this->nodeFactory->createMethodCall($variable, $method, $arguments);
+    }
+
+    /**
+     * @param mixed[] $arguments
+     */
+    protected function createLocalMethodCall(string $method, array $arguments = []): MethodCall
+    {
+        $variable = new Variable('this');
         return $this->nodeFactory->createMethodCall($variable, $method, $arguments);
     }
 

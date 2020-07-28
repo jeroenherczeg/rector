@@ -1,26 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Property\PropertyToMethodRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Property\PropertyToMethodRector;
 
 use Iterator;
-use Rector\Rector\Property\PropertyToMethodRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Property\PropertyToMethodRector\Source\Translator;
+use Rector\Core\Rector\Property\PropertyToMethodRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Property\PropertyToMethodRector\Source\Translator;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class PropertyToMethodRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**
@@ -37,7 +39,7 @@ final class PropertyToMethodRectorTest extends AbstractRectorTestCase
                             'set' => 'setLocale',
                         ],
                     ],
-                    'Rector\Tests\Rector\Property\PropertyToMethodRector\Fixture\SomeClassWithParameters' => [
+                    'Rector\Core\Tests\Rector\Property\PropertyToMethodRector\Fixture\SomeClassWithParameters' => [
                         'parameter' => [
                             'get' => [
                                 'method' => 'getConfig',

@@ -1,17 +1,19 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\StaticCall;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\StaticCall;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name\FullyQualified;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\StaticCall\StaticCallToFunctionRector\StaticCallToFunctionRectorTest
+ * @see \Rector\Core\Tests\Rector\StaticCall\StaticCallToFunctionRector\StaticCallToFunctionRectorTest
  */
 final class StaticCallToFunctionRector extends AbstractRector
 {
@@ -64,7 +66,7 @@ final class StaticCallToFunctionRector extends AbstractRector
             }
 
             foreach ($methodNamesToFunctions as $methodName => $function) {
-                if (! $this->isName($node, $methodName)) {
+                if (! $this->isName($node->name, $methodName)) {
                     continue;
                 }
 

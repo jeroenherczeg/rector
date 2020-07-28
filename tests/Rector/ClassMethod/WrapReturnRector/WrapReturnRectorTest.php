@@ -1,26 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\ClassMethod\WrapReturnRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\ClassMethod\WrapReturnRector;
 
 use Iterator;
-use Rector\Rector\ClassMethod\WrapReturnRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\ClassMethod\WrapReturnRector\Source\SomeReturnClass;
+use Rector\Core\Rector\ClassMethod\WrapReturnRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\ClassMethod\WrapReturnRector\Source\SomeReturnClass;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class WrapReturnRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/already_array.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

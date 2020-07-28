@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Exception\Application;
+declare(strict_types=1);
+
+namespace Rector\Core\Exception\Application;
 
 use Exception;
-use Symplify\PackageBuilder\FileSystem\SmartFileInfo;
+use Symplify\SmartFileSystem\SmartFileInfo;
 use Throwable;
 
 final class FileProcessingException extends Exception

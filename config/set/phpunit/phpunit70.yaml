@@ -1,7 +1,0 @@
-imports:
-    - { resource: 'phpunit-exception.yaml' }
-
-services:
-    Rector\Renaming\Rector\Annotation\RenameAnnotationRector:
-        PHPUnit\Framework\TestCase:
-            scenario: 'test'

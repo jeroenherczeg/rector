@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Exception\Console\Output;
+declare(strict_types=1);
+
+namespace Rector\Core\Exception\Console\Output;
 
 use Exception;
 

@@ -1,26 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Interface_\RemoveInterfacesRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Interface_\RemoveInterfacesRector;
 
 use Iterator;
-use Rector\Rector\Interface_\RemoveInterfacesRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Interface_\RemoveInterfacesRector\Source\SomeInterface;
+use Rector\Core\Rector\Interface_\RemoveInterfacesRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Interface_\RemoveInterfacesRector\Source\SomeInterface;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class RemoveInterfacesRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

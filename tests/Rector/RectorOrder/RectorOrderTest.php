@@ -1,12 +1,15 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\RectorOrder;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\RectorOrder;
 
 use Iterator;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
 use Rector\PHPUnit\Rector\SpecificMethod\AssertComparisonToSpecificMethodRector;
 use Rector\PHPUnit\Rector\SpecificMethod\AssertFalseStrposToContainsRector;
 use Rector\PHPUnit\Rector\SpecificMethod\AssertSameBoolNullToSpecificMethodRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 /**
  * Covers https://github.com/rectorphp/rector/pull/266#issuecomment-355725764
@@ -14,16 +17,16 @@ use Rector\Testing\PHPUnit\AbstractRectorTestCase;
 final class RectorOrderTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

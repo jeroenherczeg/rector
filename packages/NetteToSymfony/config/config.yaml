@@ -1,8 +1,0 @@
-services:
-    _defaults:
-        public: true
-        autowire: true
-
-    Rector\NetteToSymfony\:
-        resource: '../src'
-        exclude: '../src/{Route/RouteInfo.php,Event/EventInfo.php,Rector/*,PhpDocParser/Ast/PhpDoc/*}'

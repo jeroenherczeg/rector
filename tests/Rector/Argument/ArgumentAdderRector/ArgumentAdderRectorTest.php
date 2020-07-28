@@ -1,30 +1,29 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Argument\ArgumentAdderRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Argument\ArgumentAdderRector;
 
 use Iterator;
-use Rector\Rector\Argument\ArgumentAdderRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Argument\ArgumentAdderRector\Source\SomeContainerBuilder;
-use Rector\Tests\Rector\Argument\ArgumentAdderRector\Source\SomeParentClient;
+use Rector\Core\Rector\Argument\ArgumentAdderRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Argument\ArgumentAdderRector\Source\SomeContainerBuilder;
+use Rector\Core\Tests\Rector\Argument\ArgumentAdderRector\Source\SomeParentClient;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ArgumentAdderRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture3.php.inc'];
-        yield [__DIR__ . '/Fixture/scoped.php.inc'];
-        yield [__DIR__ . '/Fixture/already_added.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

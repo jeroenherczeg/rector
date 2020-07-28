@@ -1,15 +1,22 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\PhpParser\Printer;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\PhpParser\Printer;
 
 use Nette\Utils\FileSystem;
-use Rector\HttpKernel\RectorKernel;
-use Rector\PhpParser\Printer\FormatPerservingPrinter;
-use Symplify\PackageBuilder\FileSystem\SmartFileInfo;
+use Rector\Core\HttpKernel\RectorKernel;
+use Rector\Core\PhpParser\Printer\FormatPerservingPrinter;
 use Symplify\PackageBuilder\Tests\AbstractKernelTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class FormatPerservingPrinterTest extends AbstractKernelTestCase
 {
+    /**
+     * @var int
+     */
+    private const EXPECTED_FILEMOD = 0755;
+
     /**
      * @var FormatPerservingPrinter
      */
@@ -30,13 +37,13 @@ final class FormatPerservingPrinterTest extends AbstractKernelTestCase
     {
         mkdir(__DIR__ . '/Fixture');
         touch(__DIR__ . '/Fixture/file.php');
-        $expectedFilemod = 0755;
-        chmod(__DIR__ . '/Fixture/file.php', $expectedFilemod);
+
+        chmod(__DIR__ . '/Fixture/file.php', self::EXPECTED_FILEMOD);
 
         $fileInfo = new SmartFileInfo(__DIR__ . '/Fixture/file.php');
 
         $this->formatPerservingPrinter->printToFile($fileInfo, [], [], []);
 
-        $this->assertSame($expectedFilemod, fileperms(__DIR__ . '/Fixture/file.php') & 0777);
+        $this->assertSame(self::EXPECTED_FILEMOD, fileperms(__DIR__ . '/Fixture/file.php') & 0777);
     }
 }

@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\AbstractRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\AbstractRector;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
@@ -8,10 +10,16 @@ use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Return_;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\Type;
+use PHPStan\Type\TypeWithClassName;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\NodeTypeResolver\NodeTypeResolver;
+use Rector\NodeTypeResolver\TypeAnalyzer\ArrayTypeAnalyzer;
+use Rector\NodeTypeResolver\TypeAnalyzer\CountableTypeAnalyzer;
+use Rector\NodeTypeResolver\TypeAnalyzer\StringTypeAnalyzer;
+use Rector\PHPStanStaticTypeMapper\Utils\TypeUnwrapper;
 
 /**
  * This could be part of @see AbstractRector, but decopuling to trait
@@ -25,11 +33,52 @@ trait NodeTypeResolverTrait
     private $nodeTypeResolver;
 
     /**
+     * @var ArrayTypeAnalyzer
+     */
+    private $arrayTypeAnalyzer;
+
+    /**
+     * @var CountableTypeAnalyzer
+     */
+    private $countableTypeAnalyzer;
+
+    /**
+     * @var StringTypeAnalyzer
+     */
+    private $stringTypeAnalyzer;
+
+    /**
+     * @var TypeUnwrapper
+     */
+    private $typeUnwrapper;
+
+    /**
      * @required
      */
-    public function autowireTypeAnalyzerDependencies(NodeTypeResolver $nodeTypeResolver): void
-    {
+    public function autowireTypeAnalyzerDependencies(
+        NodeTypeResolver $nodeTypeResolver,
+        ArrayTypeAnalyzer $arrayTypeAnalyzer,
+        CountableTypeAnalyzer $countableTypeAnalyzer,
+        StringTypeAnalyzer $stringTypeAnalyzer,
+        TypeUnwrapper $typeUnwrapper
+    ): void {
         $this->nodeTypeResolver = $nodeTypeResolver;
+        $this->arrayTypeAnalyzer = $arrayTypeAnalyzer;
+        $this->countableTypeAnalyzer = $countableTypeAnalyzer;
+        $this->stringTypeAnalyzer = $stringTypeAnalyzer;
+        $this->typeUnwrapper = $typeUnwrapper;
+    }
+
+    public function isInObjectType(Node $node, string $type): bool
+    {
+        $objectType = $this->nodeTypeResolver->resolve($node);
+
+        $desiredObjectType = new ObjectType($type);
+        if ($objectType->isSuperTypeOf($desiredObjectType)->yes()) {
+            return true;
+        }
+
+        return $objectType->equals($desiredObjectType);
     }
 
     /**
@@ -41,7 +90,7 @@ trait NodeTypeResolverTrait
     }
 
     /**
-     * @param string[] $requiredTypes
+     * @param string[]|ObjectType[] $requiredTypes
      */
     protected function isObjectTypes(Node $node, array $requiredTypes): bool
     {
@@ -54,9 +103,37 @@ trait NodeTypeResolverTrait
         return false;
     }
 
+    protected function isReturnOfObjectType(Return_ $return, string $objectType): bool
+    {
+        if ($return->expr === null) {
+            return false;
+        }
+
+        $returnType = $this->getStaticType($return->expr);
+        if (! $returnType instanceof TypeWithClassName) {
+            return false;
+        }
+
+        return is_a($returnType->getClassName(), $objectType, true);
+    }
+
+    /**
+     * @param Type[] $desiredTypes
+     */
+    protected function isSameObjectTypes(ObjectType $objectType, array $desiredTypes): bool
+    {
+        foreach ($desiredTypes as $abstractClassConstructorParamType) {
+            if ($abstractClassConstructorParamType->equals($objectType)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     protected function isStringOrUnionStringOnlyType(Node $node): bool
     {
-        return $this->nodeTypeResolver->isStringOrUnionStringOnlyType($node);
+        return $this->stringTypeAnalyzer->isStringOrUnionStringOnlyType($node);
     }
 
     protected function isNumberType(Node $node): bool
@@ -86,17 +163,17 @@ trait NodeTypeResolverTrait
 
     protected function isCountableType(Node $node): bool
     {
-        return $this->nodeTypeResolver->isCountableType($node);
+        return $this->countableTypeAnalyzer->isCountableType($node);
     }
 
     protected function isArrayType(Node $node): bool
     {
-        return $this->nodeTypeResolver->isArrayType($node);
+        return $this->arrayTypeAnalyzer->isArrayType($node);
     }
 
     protected function getObjectType(Node $node): Type
     {
-        return $this->nodeTypeResolver->getObjectType($node);
+        return $this->nodeTypeResolver->resolve($node);
     }
 
     /**
@@ -110,7 +187,7 @@ trait NodeTypeResolverTrait
             }
 
             // method call is variable return
-            return $this->isObjectType($node, $type);
+            return $this->isObjectType($node->var, $type);
         }
 
         if ($node instanceof StaticCall) {

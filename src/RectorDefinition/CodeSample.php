@@ -1,8 +1,10 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\RectorDefinition;
+declare(strict_types=1);
 
-use Rector\Contract\RectorDefinition\CodeSampleInterface;
+namespace Rector\Core\RectorDefinition;
+
+use Rector\Core\Contract\RectorDefinition\CodeSampleInterface;
 
 final class CodeSample implements CodeSampleInterface
 {
@@ -16,10 +18,16 @@ final class CodeSample implements CodeSampleInterface
      */
     private $codeAfter;
 
-    public function __construct(string $codeBefore, string $codeAfter)
+    /**
+     * @var string|null
+     */
+    private $extraFileContent;
+
+    public function __construct(string $codeBefore, string $codeAfter, ?string $extraFileContent = null)
     {
         $this->codeBefore = $codeBefore;
         $this->codeAfter = $codeAfter;
+        $this->extraFileContent = $extraFileContent;
     }
 
     public function getCodeBefore(): string
@@ -30,5 +38,10 @@ final class CodeSample implements CodeSampleInterface
     public function getCodeAfter(): string
     {
         return $this->codeAfter;
+    }
+
+    public function getExtraFileContent(): ?string
+    {
+        return $this->extraFileContent;
     }
 }

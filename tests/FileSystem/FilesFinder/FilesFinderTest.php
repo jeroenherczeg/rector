@@ -1,12 +1,16 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\FileSystem\FilesFinder;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\FileSystem\FilesFinder;
 
 use Iterator;
-use Rector\FileSystem\FilesFinder;
-use Rector\HttpKernel\RectorKernel;
-use Symplify\PackageBuilder\FileSystem\SmartFileInfo;
+use Nette\Utils\FileSystem;
+use Rector\Core\FileSystem\FilesFinder;
+use Rector\Core\HttpKernel\RectorKernel;
 use Symplify\PackageBuilder\Tests\AbstractKernelTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
+use Symplify\SmartFileSystem\SmartFileSystem;
 
 final class FilesFinderTest extends AbstractKernelTestCase
 {
@@ -15,10 +19,16 @@ final class FilesFinderTest extends AbstractKernelTestCase
      */
     private $filesFinder;
 
+    /**
+     * @var SmartFileSystem
+     */
+    private $smartFileSystem;
+
     protected function setUp(): void
     {
         $this->bootKernel(RectorKernel::class);
         $this->filesFinder = self::$container->get(FilesFinder::class);
+        $this->smartFileSystem = self::$container->get(SmartFileSystem::class);
     }
 
     /**
@@ -26,7 +36,7 @@ final class FilesFinderTest extends AbstractKernelTestCase
      */
     public function testSingleSuffix(string $suffix, int $count, string $expectedFileName): void
     {
-        $foundFiles = $this->filesFinder->findInDirectoriesAndFiles([__DIR__ . '/FilesFinderSource'], [$suffix]);
+        $foundFiles = $this->filesFinder->findInDirectoriesAndFiles([__DIR__ . '/Source'], [$suffix]);
         $this->assertCount($count, $foundFiles);
 
         /** @var SmartFileInfo $foundFile */
@@ -44,17 +54,40 @@ final class FilesFinderTest extends AbstractKernelTestCase
 
     public function testMultipleSuffixes(): void
     {
-        $foundFiles = $this->filesFinder->findInDirectoriesAndFiles([__DIR__ . '/FilesFinderSource'], ['yaml', 'yml']);
+        $foundFiles = $this->filesFinder->findInDirectoriesAndFiles([__DIR__ . '/Source'], ['yaml', 'yml']);
         $this->assertCount(2, $foundFiles);
 
         $foundFileNames = [];
         foreach ($foundFiles as $foundFile) {
             $foundFileNames[] = $foundFile->getFilename();
         }
+
         $expectedFoundFileNames = ['some_config.yml', 'other_config.yaml'];
 
         sort($foundFileNames);
         sort($expectedFoundFileNames);
         $this->assertSame($expectedFoundFileNames, $foundFileNames);
+    }
+
+    public function testMatchGitDiff(): void
+    {
+        $dir = sys_get_temp_dir() . '/' . mt_rand();
+        mkdir($dir);
+        chdir($dir);
+        shell_exec('git init');
+
+        $filename = $dir . '/tmp.php';
+        touch($filename);
+        touch($dir . '/tmp.yml');
+
+        shell_exec('git add --all && git commit -m "first commit"');
+
+        $this->smartFileSystem->dumpFile($filename, '<?php echo ' . mt_rand() . ';');
+        $this->smartFileSystem->dumpFile($dir . '/tmp.yml', '');
+
+        $foundFiles = $this->filesFinder->findInDirectoriesAndFiles([$dir], ['php'], true);
+        $this->assertCount(1, $foundFiles);
+
+        FileSystem::delete($filename);
     }
 }

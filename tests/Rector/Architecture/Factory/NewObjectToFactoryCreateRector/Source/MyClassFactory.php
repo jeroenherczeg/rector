@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector\Source;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector\Source;
 
 final class MyClassFactory
 {

@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\MethodCall;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\MethodCall;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
@@ -9,15 +11,15 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt\Class_;
 use PHPStan\Type\ObjectType;
-use Rector\Naming\PropertyNaming;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
+use Rector\Naming\Naming\PropertyNaming;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\ServiceGetterToConstructorInjectionRectorTest
- * @see \Rector\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\ServiceGetterToConstructorInjectionRectorTest
+ * @see \Rector\Core\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\ServiceGetterToConstructorInjectionRectorTest
+ * @see \Rector\Core\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\ServiceGetterToConstructorInjectionRectorTest
  */
 final class ServiceGetterToConstructorInjectionRector extends AbstractRector
 {
@@ -70,7 +72,7 @@ class FirstService
      * @var AnotherService
      */
     private $anotherService;
-    
+
     public function __construct(AnotherService $anotherService)
     {
         $this->anotherService = $anotherService;
@@ -90,7 +92,7 @@ final class SomeClass
      * @var FirstService
      */
     private $firstService;
-    
+
     /**
      * @var AnotherService
      */
@@ -135,8 +137,8 @@ PHP
      */
     public function refactor(Node $node): ?Node
     {
-        $classNode = $node->getAttribute(AttributeKey::CLASS_NODE);
-        if (! $this->isNonAnonymousClass($classNode)) {
+        $classLike = $node->getAttribute(AttributeKey::CLASS_NODE);
+        if (! $this->isNonAnonymousClass($classLike)) {
             return null;
         }
 
@@ -154,8 +156,8 @@ PHP
 
                 $propertyName = $this->propertyNaming->fqnToVariableName($serviceObjectType);
 
-                /** @var Class_ $classNode */
-                $this->addPropertyToClass($classNode, $serviceObjectType, $propertyName);
+                /** @var Class_ $classLike */
+                $this->addPropertyToClass($classLike, $serviceObjectType, $propertyName);
 
                 return new PropertyFetch(new Variable('this'), new Identifier($propertyName));
             }

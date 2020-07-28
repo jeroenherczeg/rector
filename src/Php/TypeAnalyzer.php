@@ -1,11 +1,19 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Php;
+declare(strict_types=1);
+
+namespace Rector\Core\Php;
 
 use Nette\Utils\Strings;
+use Rector\Core\ValueObject\PhpVersionFeature;
 
 final class TypeAnalyzer
 {
+    /**
+     * @var string[]
+     */
+    private const EXTRA_TYPES = ['object'];
+
     /**
      * @var string[]
      */
@@ -28,7 +36,7 @@ final class TypeAnalyzer
 
     public function __construct(PhpVersionProvider $phpVersionProvider)
     {
-        if ($phpVersionProvider->isAtLeast('7.2')) {
+        if ($phpVersionProvider->isAtLeast(PhpVersionFeature::OBJECT_TYPE)) {
             $this->phpSupportedTypes[] = 'object';
         }
     }
@@ -39,12 +47,11 @@ final class TypeAnalyzer
 
         foreach ($types as $singleType) {
             $singleType = strtolower($singleType);
-            $extraTypes = ['object'];
 
             // remove [] from arrays
             $singleType = Strings::replace($singleType, '#(\[\])+$#');
 
-            if (in_array($singleType, array_merge($this->phpSupportedTypes, $extraTypes), true)) {
+            if (in_array($singleType, array_merge($this->phpSupportedTypes, self::EXTRA_TYPES), true)) {
                 return true;
             }
         }
@@ -75,10 +82,5 @@ final class TypeAnalyzer
         }
 
         return $type;
-    }
-
-    public function isPhpSupported(string $type): bool
-    {
-        return in_array($type, $this->phpSupportedTypes, true);
     }
 }

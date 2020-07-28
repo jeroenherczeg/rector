@@ -3,21 +3,21 @@ name: Bug Report
 about: Report errors and problems
 ---
 
+# Bug Report
+
 <!-- First, thank you for reporting a bug. That takes time and we appreciate that! -->
 
-| Subject        | Details                                                      |
-| :------------- | :----------------------------------------------------------- |
-| PHP version    | e.g. PHP 7.3 (invoke `php -v`)                               |
-| Full Command   | e.g. vendor/bin/rector process /src --set dead-code --debug  | 
+| Subject        | Details                                                         |
+| :------------- | :---------------------------------------------------------------|
+| Rector version | e.g. v0.7.0 (invoke `vendor/bin/rector --version`)              |
+| Installed as   | composer dependency / prefixed Rector PHAR                      |
 
-## Current Behaviour 
-
-<!-- report from command line with --debug -->
-<!-- description/screenshot -->
+<!-- Please describe your problem here. -->
 
 ## Minimal PHP Code Causing Issue
 
-<!-- if possible, always run Rector on specfic file, that causes the error -->
-<!-- e.g. vendor/bin/rector process /src/SpecificFile.php --set dead-code --debug -->  
+<!-- Try to reproduce the issue using https://getrector.org/demo/ and post the URL here. -->
 
 ## Expected Behaviour
+
+<!-- Was the change done incorrectly? Or should Rector skip it? -->

@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Exception\Bridge;
+declare(strict_types=1);
+
+namespace Rector\Core\Exception\Bridge;
 
 use Exception;
 

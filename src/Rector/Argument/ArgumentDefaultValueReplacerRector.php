@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Argument;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Argument;
 
 use Nette\Utils\Strings;
 use PhpParser\BuilderHelpers;
@@ -9,15 +11,25 @@ use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Stmt\ClassMethod;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\Argument\ArgumentDefaultValueReplacerRector\ArgumentDefaultValueReplacerRectorTest
+ * @see \Rector\Core\Tests\Rector\Argument\ArgumentDefaultValueReplacerRector\ArgumentDefaultValueReplacerRectorTest
  */
 final class ArgumentDefaultValueReplacerRector extends AbstractRector
 {
+    /**
+     * @var string
+     */
+    private const BEFORE = 'before';
+
+    /**
+     * @var string
+     */
+    private const AFTER = 'after';
+
     /**
      * @var mixed[]
      */
@@ -52,8 +64,8 @@ PHP
                             'someMethod' => [
                                 0 => [
                                     [
-                                        'before' => 'SomeClass::OLD_CONSTANT',
-                                        'after' => 'false',
+                                        self::BEFORE => 'SomeClass::OLD_CONSTANT',
+                                        self::AFTER => 'false',
                                     ],
                                 ],
                             ],
@@ -83,7 +95,7 @@ PHP
             }
 
             foreach ($replacesByMethods as $method => $replaces) {
-                if (! $this->isName($node, $method)) {
+                if (! $this->isName($node->name, $method)) {
                     continue;
                 }
 
@@ -105,8 +117,6 @@ PHP
                 if (! isset($node->params[$position])) {
                     continue;
                 }
-
-                // @todo
             } elseif (isset($node->args[$position])) {
                 $this->processArgs($node, $position, $oldToNewValues);
             }
@@ -121,17 +131,16 @@ PHP
      */
     private function processArgs(Node $node, int $position, array $oldToNewValues): void
     {
-        $argValue = $this->resolveArgumentValue($node->args[$position]);
+        $argValue = $this->getValue($node->args[$position]->value);
+
         foreach ($oldToNewValues as $oldToNewValue) {
-            if (is_scalar($oldToNewValue['before']) && $argValue === $oldToNewValue['before']) {
-                $node->args[$position] = $this->normalizeValueToArgument($oldToNewValue['after']);
-            } elseif (is_array($oldToNewValue['before'])) {
-                $newArgs = $this->processArrayReplacement(
-                    $node->args,
-                    $position,
-                    $oldToNewValue['before'],
-                    $oldToNewValue['after']
-                );
+            $oldValue = $oldToNewValue[self::BEFORE];
+            $newValue = $oldToNewValue[self::AFTER];
+
+            if (is_scalar($oldValue) && $argValue === $oldValue) {
+                $node->args[$position] = $this->normalizeValueToArgument($newValue);
+            } elseif (is_array($oldValue)) {
+                $newArgs = $this->processArrayReplacement($node->args, $position, $oldValue, $newValue);
 
                 if ($newArgs) {
                     $node->args = $newArgs;
@@ -142,24 +151,6 @@ PHP
     }
 
     /**
-     * @return mixed
-     */
-    private function resolveArgumentValue(Arg $arg)
-    {
-        $resolvedValue = $this->getValue($arg->value);
-
-        if ($resolvedValue === true) {
-            return 'true';
-        }
-
-        if (! $resolvedValue) {
-            return 'false';
-        }
-
-        return $resolvedValue;
-    }
-
-    /**
      * @param mixed $value
      */
     private function normalizeValueToArgument($value): Arg
@@ -167,9 +158,9 @@ PHP
         // class constants → turn string to composite
         if (is_string($value) && Strings::contains($value, '::')) {
             [$class, $constant] = explode('::', $value);
-            $classConstantFetchNode = $this->createClassConstant($class, $constant);
+            $classConstFetch = $this->createClassConstFetch($class, $constant);
 
-            return new Arg($classConstantFetchNode);
+            return new Arg($classConstFetch);
         }
 
         return new Arg(BuilderHelpers::normalizeValue($value));
@@ -193,7 +184,7 @@ PHP
 
             // clear following arguments
             $argumentCountToClear = count($before);
-            for ($i = $position + 1; $i <= ($position + $argumentCountToClear); ++$i) {
+            for ($i = $position + 1; $i <= $position + $argumentCountToClear; ++$i) {
                 unset($argumentNodes[$i]);
             }
         }
@@ -204,18 +195,20 @@ PHP
     /**
      * @param Arg[] $argumentNodes
      * @param mixed[] $before
-     * @return mixed
      */
-    private function resolveArgumentValuesToBeforeRecipe(array $argumentNodes, int $position, array $before)
+    private function resolveArgumentValuesToBeforeRecipe(array $argumentNodes, int $position, array $before): array
     {
         $argumentValues = [];
 
         $beforeArgumentCount = count($before);
 
         for ($i = 0; $i < $beforeArgumentCount; ++$i) {
-            if (isset($argumentNodes[$position + $i])) {
-                $argumentValues[] = $this->resolveArgumentValue($argumentNodes[$position + $i]);
+            if (! isset($argumentNodes[$position + $i])) {
+                continue;
             }
+
+            $nextArg = $argumentNodes[$position + $i];
+            $argumentValues[] = $this->getValue($nextArg->value);
         }
 
         return $argumentValues;

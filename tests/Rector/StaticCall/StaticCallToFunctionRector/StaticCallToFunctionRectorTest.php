@@ -1,25 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\StaticCall\StaticCallToFunctionRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\StaticCall\StaticCallToFunctionRector;
 
 use Iterator;
-use Rector\Rector\StaticCall\StaticCallToFunctionRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\StaticCall\StaticCallToFunctionRector\Source\SomeOldStaticClass;
+use Rector\Core\Rector\StaticCall\StaticCallToFunctionRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\StaticCall\StaticCallToFunctionRector\Source\SomeOldStaticClass;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class StaticCallToFunctionRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

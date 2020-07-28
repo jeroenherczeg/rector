@@ -1,30 +1,26 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node\Manipulator;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node\Manipulator;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
-use PhpParser\Node\Param;
 use PhpParser\Node\Stmt\Class_;
-use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\NodeTraverser;
-use PHPStan\Analyser\Scope;
-use PHPStan\Broker\Broker;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\ErrorType;
 use PHPStan\Type\MixedType;
-use PHPStan\Type\ObjectType;
 use PHPStan\Type\Type;
-use Rector\Exception\ShouldNotHappenException;
+use PHPStan\Type\TypeWithClassName;
+use Rector\Core\Exception\ShouldNotHappenException;
+use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\NodeTypeResolver\NodeTypeResolver;
-use Rector\PhpParser\Node\Resolver\NameResolver;
-use Rector\PhpParser\NodeTraverser\CallableNodeTraverser;
 
 /**
- * Read-only utils for PropertyFetch Node:
+ * Utils for PropertyFetch Node:
  * "$this->property"
  */
 final class PropertyFetchManipulator
@@ -35,68 +31,51 @@ final class PropertyFetchManipulator
     private $nodeTypeResolver;
 
     /**
-     * @var Broker
+     * @var ReflectionProvider
      */
-    private $broker;
+    private $reflectionProvider;
 
     /**
-     * @var NameResolver
+     * @var NodeNameResolver
      */
-    private $nameResolver;
-
-    /**
-     * @var ClassManipulator
-     */
-    private $classManipulator;
-
-    /**
-     * @var CallableNodeTraverser
-     */
-    private $callableNodeTraverser;
-
-    /**
-     * @var AssignManipulator
-     */
-    private $assignManipulator;
+    private $nodeNameResolver;
 
     public function __construct(
+        NodeNameResolver $nodeNameResolver,
         NodeTypeResolver $nodeTypeResolver,
-        Broker $broker,
-        NameResolver $nameResolver,
-        ClassManipulator $classManipulator,
-        CallableNodeTraverser $callableNodeTraverser,
-        AssignManipulator $assignManipulator
+        ReflectionProvider $reflectionProvider
     ) {
         $this->nodeTypeResolver = $nodeTypeResolver;
-        $this->broker = $broker;
-        $this->nameResolver = $nameResolver;
-        $this->classManipulator = $classManipulator;
-        $this->callableNodeTraverser = $callableNodeTraverser;
-        $this->assignManipulator = $assignManipulator;
+        $this->reflectionProvider = $reflectionProvider;
+        $this->nodeNameResolver = $nodeNameResolver;
     }
 
     public function isPropertyToSelf(PropertyFetch $propertyFetch): bool
     {
-        if (! $this->nameResolver->isName($propertyFetch->var, 'this')) {
+        if (! $this->nodeNameResolver->isName($propertyFetch->var, 'this')) {
             return false;
         }
 
-        /** @var Class_|null $class */
-        $class = $propertyFetch->getAttribute(AttributeKey::CLASS_NODE);
-        if ($class === null) {
+        /** @var Class_|null $classLike */
+        $classLike = $propertyFetch->getAttribute(AttributeKey::CLASS_NODE);
+        if ($classLike === null) {
             return false;
         }
 
-        return $this->classManipulator->hasPropertyFetchAsProperty($class, $propertyFetch);
+        foreach ($classLike->getProperties() as $property) {
+            if (! $this->nodeNameResolver->areNamesEqual($property->props[0], $propertyFetch)) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
-    public function isMagicOnType(Node $node, Type $type): bool
+    public function isMagicOnType(PropertyFetch $propertyFetch, Type $type): bool
     {
-        if (! $node instanceof PropertyFetch) {
-            return false;
-        }
-
-        $varNodeType = $this->nodeTypeResolver->resolve($node);
+        $varNodeType = $this->nodeTypeResolver->resolve($propertyFetch);
 
         if ($varNodeType instanceof ErrorType) {
             return true;
@@ -106,43 +85,16 @@ final class PropertyFetchManipulator
             return false;
         }
 
-        if ($varNodeType->isSuperTypeOf($type)) {
+        if ($varNodeType->isSuperTypeOf($type)->yes()) {
             return false;
         }
 
-        $nodeName = $this->nameResolver->getName($node);
+        $nodeName = $this->nodeNameResolver->getName($propertyFetch);
         if ($nodeName === null) {
             return false;
         }
 
-        return ! $this->hasPublicProperty($node, $nodeName);
-    }
-
-    /**
-     * @return string[]
-     */
-    public function getPropertyNamesOfAssignOfVariable(Node $node, string $paramName): array
-    {
-        $propertyNames = [];
-
-        $this->callableNodeTraverser->traverseNodesWithCallable($node, function (Node $node) use (
-            $paramName,
-            &$propertyNames
-        ) {
-            if (! $this->isVariableAssignToThisPropertyFetch($node, $paramName)) {
-                return null;
-            }
-
-            /** @var Assign $node */
-            $propertyName = $this->nameResolver->getName($node->expr);
-            if ($propertyName) {
-                $propertyNames[] = $propertyName;
-            }
-
-            return null;
-        });
-
-        return $propertyNames;
+        return ! $this->hasPublicProperty($propertyFetch, $nodeName);
     }
 
     /**
@@ -159,141 +111,33 @@ final class PropertyFetchManipulator
             return false;
         }
 
-        if (! $this->nameResolver->isName($node->expr, $variableName)) {
+        if (! $this->nodeNameResolver->isName($node->expr, $variableName)) {
             return false;
         }
 
-        if (! $node->var instanceof PropertyFetch) {
-            return false;
-        }
-
-        // must be local property
-        if (! $this->nameResolver->isName($node->var->var, 'this')) {
-            return false;
-        }
-
-        return true;
+        return $this->isLocalPropertyFetch($node->var);
     }
 
     /**
      * @param string[] $propertyNames
      */
-    public function isLocalPropertyOfNames(Expr $expr, array $propertyNames): bool
+    public function isLocalPropertyOfNames(Node $node, array $propertyNames): bool
     {
-        if (! $this->isLocalProperty($expr)) {
+        if (! $this->isLocalPropertyFetch($node)) {
             return false;
         }
 
-        /** @var PropertyFetch $expr */
-        return $this->nameResolver->isNames($expr->name, $propertyNames);
+        /** @var PropertyFetch $node */
+        return $this->nodeNameResolver->isNames($node->name, $propertyNames);
     }
 
-    public function isLocalProperty(Node $node): bool
+    public function isLocalPropertyFetch(Node $node): bool
     {
         if (! $node instanceof PropertyFetch) {
             return false;
         }
 
-        return $this->nameResolver->isName($node->var, 'this');
-    }
-
-    public function getFirstVariableAssignedToPropertyOfName(
-        ClassMethod $classMethod,
-        string $propertyName
-    ): ?Variable {
-        $variable = null;
-
-        $this->callableNodeTraverser->traverseNodesWithCallable((array) $classMethod->stmts, function (Node $node) use (
-            $propertyName,
-            &$variable
-        ): ?int {
-            if (! $node instanceof Assign) {
-                return null;
-            }
-
-            if (! $this->isLocalPropertyOfNames($node->var, [$propertyName])) {
-                return null;
-            }
-
-            if (! $node->expr instanceof Variable) {
-                return null;
-            }
-
-            $variable = $node->expr;
-
-            return NodeTraverser::STOP_TRAVERSAL;
-        });
-
-        return $variable;
-    }
-
-    /**
-     * @return Expr[]
-     */
-    public function getExprsAssignedToPropertyName(ClassMethod $classMethod, string $propertyName): array
-    {
-        $assignedExprs = [];
-
-        $this->callableNodeTraverser->traverseNodesWithCallable($classMethod, function (Node $node) use (
-            $propertyName,
-            &$assignedExprs
-        ) {
-            if (! $this->assignManipulator->isLocalPropertyAssignWithPropertyNames($node, [$propertyName])) {
-                return null;
-            }
-
-            /** @var Assign $node */
-            $assignedExprs[] = $node->expr;
-        });
-
-        return $assignedExprs;
-    }
-
-    /**
-     * In case the property name is different to param name:
-     *
-     * E.g.:
-     * (SomeType $anotherValue)
-     * $this->value = $anotherValue;
-     * ↓
-     * (SomeType $anotherValue)
-     */
-    public function resolveParamForPropertyFetch(ClassMethod $classMethod, string $propertyName): ?Param
-    {
-        $assignedParamName = null;
-
-        $this->callableNodeTraverser->traverseNodesWithCallable((array) $classMethod->stmts, function (Node $node) use (
-            $propertyName,
-            &$assignedParamName
-        ): ?int {
-            if (! $node instanceof Assign) {
-                return null;
-            }
-
-            if (! $this->nameResolver->isName($node->var, $propertyName)) {
-                return null;
-            }
-
-            $assignedParamName = $this->nameResolver->getName($node->expr);
-
-            return NodeTraverser::STOP_TRAVERSAL;
-        });
-
-        /** @var string|null $assignedParamName */
-        if ($assignedParamName === null) {
-            return null;
-        }
-
-        /** @var Param $param */
-        foreach ((array) $classMethod->params as $param) {
-            if (! $this->nameResolver->isName($param, $assignedParamName)) {
-                continue;
-            }
-
-            return $param;
-        }
-
-        return null;
+        return $this->nodeNameResolver->isName($node->var, 'this');
     }
 
     private function hasPublicProperty(PropertyFetch $propertyFetch, string $propertyName): bool
@@ -304,19 +148,16 @@ final class PropertyFetchManipulator
         }
 
         $propertyFetchType = $nodeScope->getType($propertyFetch->var);
-        if ($propertyFetchType instanceof ObjectType) {
-            $propertyFetchType = $propertyFetchType->getClassName();
-        }
-
-        if (! is_string($propertyFetchType)) {
+        if (! $propertyFetchType instanceof TypeWithClassName) {
             return false;
         }
 
-        if (! $this->broker->hasClass($propertyFetchType)) {
+        $propertyFetchType = $propertyFetchType->getClassName();
+        if (! $this->reflectionProvider->hasClass($propertyFetchType)) {
             return false;
         }
 
-        $classReflection = $this->broker->getClass($propertyFetchType);
+        $classReflection = $this->reflectionProvider->getClass($propertyFetchType);
         if (! $classReflection->hasProperty($propertyName)) {
             return false;
         }

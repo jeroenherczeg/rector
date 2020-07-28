@@ -1,27 +1,29 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Assign\PropertyAssignToMethodCallRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Assign\PropertyAssignToMethodCallRector;
 
 use Iterator;
-use Rector\Rector\Assign\PropertyAssignToMethodCallRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Assign\PropertyAssignToMethodCallRector\Source\ChoiceControl;
-use Rector\Tests\Rector\Assign\PropertyAssignToMethodCallRector\Source\MultiChoiceControl;
+use Rector\Core\Rector\Assign\PropertyAssignToMethodCallRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Assign\PropertyAssignToMethodCallRector\Source\ChoiceControl;
+use Rector\Core\Tests\Rector\Assign\PropertyAssignToMethodCallRector\Source\MultiChoiceControl;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class PropertyAssignToMethodCallRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

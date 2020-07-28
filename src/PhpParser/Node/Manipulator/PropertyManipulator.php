@@ -1,23 +1,37 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node\Manipulator;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node\Manipulator;
 
 use PhpParser\Node;
+use PhpParser\Node\Arg;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\PostDec;
+use PhpParser\Node\Expr\PostInc;
+use PhpParser\Node\Expr\PreDec;
+use PhpParser\Node\Expr\PreInc;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticPropertyFetch;
 use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\Property;
-use Rector\NodeContainer\ParsedNodesByType;
+use Rector\BetterPhpDocParser\PhpDocInfo\PhpDocInfo;
+use Rector\BetterPhpDocParser\PhpDocNode\JMS\SerializerTypeTagValueNode;
+use Rector\Core\PhpParser\Node\BetterNodeFinder;
+use Rector\Core\PhpParser\Printer\BetterStandardPrinter;
+use Rector\Doctrine\AbstractRector\DoctrineTrait;
+use Rector\NodeCollector\NodeFinder\ClassLikeParsedNodesFinder;
+use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\PhpParser\Node\BetterNodeFinder;
-use Rector\PhpParser\Node\Resolver\NameResolver;
-use Rector\PhpParser\Printer\BetterStandardPrinter;
 
 /**
  * "private $property"
  */
 final class PropertyManipulator
 {
+    use DoctrineTrait;
+
     /**
      * @var BetterNodeFinder
      */
@@ -29,25 +43,32 @@ final class PropertyManipulator
     private $betterStandardPrinter;
 
     /**
-     * @var NameResolver
+     * @var NodeNameResolver
      */
-    private $nameResolver;
+    private $nodeNameResolver;
 
     /**
-     * @var ParsedNodesByType
+     * @var AssignManipulator
      */
-    private $parsedNodesByType;
+    private $assignManipulator;
+
+    /**
+     * @var ClassLikeParsedNodesFinder
+     */
+    private $classLikeParsedNodesFinder;
 
     public function __construct(
+        AssignManipulator $assignManipulator,
         BetterNodeFinder $betterNodeFinder,
         BetterStandardPrinter $betterStandardPrinter,
-        NameResolver $nameResolver,
-        ParsedNodesByType $parsedNodesByType
+        ClassLikeParsedNodesFinder $classLikeParsedNodesFinder,
+        NodeNameResolver $nodeNameResolver
     ) {
         $this->betterNodeFinder = $betterNodeFinder;
         $this->betterStandardPrinter = $betterStandardPrinter;
-        $this->nameResolver = $nameResolver;
-        $this->parsedNodesByType = $parsedNodesByType;
+        $this->nodeNameResolver = $nodeNameResolver;
+        $this->assignManipulator = $assignManipulator;
+        $this->classLikeParsedNodesFinder = $classLikeParsedNodesFinder;
     }
 
     /**
@@ -55,35 +76,99 @@ final class PropertyManipulator
      */
     public function getAllPropertyFetch(Property $property): array
     {
-        /** @var Class_|null $classNode */
-        $classNode = $property->getAttribute(AttributeKey::CLASS_NODE);
-        if ($classNode === null) {
+        /** @var Class_|null $classLike */
+        $classLike = $property->getAttribute(AttributeKey::CLASS_NODE);
+        if ($classLike === null) {
             return [];
         }
 
-        $nodesToSearch = $this->parsedNodesByType->findUsedTraitsInClass($classNode);
-        $nodesToSearch[] = $classNode;
+        $nodesToSearch = $this->classLikeParsedNodesFinder->findUsedTraitsInClass($classLike);
+        $nodesToSearch[] = $classLike;
 
-        /** @var PropertyFetch[]|StaticPropertyFetch[] $propertyFetches */
-        $propertyFetches = $this->betterNodeFinder->find($nodesToSearch, function (Node $node) use ($property) {
+        $singleProperty = $property->props[0];
+
+        return $this->betterNodeFinder->find($nodesToSearch, function (Node $node) use (
+            $singleProperty,
+            $nodesToSearch
+        ): bool {
             // property + static fetch
             if (! $node instanceof PropertyFetch && ! $node instanceof StaticPropertyFetch) {
-                return null;
+                return false;
             }
 
             // itself
-            if ($this->betterStandardPrinter->areNodesEqual($node, $property)) {
-                return null;
+            if ($this->betterStandardPrinter->areNodesEqual($node, $singleProperty)) {
+                return false;
             }
 
             // is it the name match?
-            if (! $this->nameResolver->areNamesEqual($node, $property)) {
-                return null;
+            if (! $this->nodeNameResolver->areNamesEqual($node, $singleProperty)) {
+                return false;
             }
 
-            return $node;
+            return in_array($node->getAttribute(AttributeKey::CLASS_NODE), $nodesToSearch, true);
         });
+    }
 
-        return $propertyFetches;
+    public function isReadOnlyProperty(Property $property): bool
+    {
+        foreach ($this->getAllPropertyFetch($property) as $propertyFetch) {
+            if (! $this->isReadContext($propertyFetch)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function isPropertyUsedInReadContext(Property $property): bool
+    {
+        if ($this->isDoctrineProperty($property)) {
+            return true;
+        }
+
+        /** @var PhpDocInfo|null $phpDocInfo */
+        $phpDocInfo = $property->getAttribute(AttributeKey::PHP_DOC_INFO);
+        if ($phpDocInfo !== null && $phpDocInfo->hasByType(SerializerTypeTagValueNode::class)) {
+            return true;
+        }
+
+        foreach ($this->getAllPropertyFetch($property) as $propertyFetch) {
+            if ($this->isReadContext($propertyFetch)) {
+                return true;
+            }
+        }
+
+        // has classLike $this->$variable call?
+        /** @var ClassLike $classLike */
+        $classLike = $property->getAttribute(AttributeKey::CLASS_NODE);
+
+        return (bool) $this->betterNodeFinder->findFirst($classLike->stmts, function (Node $node): bool {
+            if (! $node instanceof PropertyFetch) {
+                return false;
+            }
+
+            if (! $this->isReadContext($node)) {
+                return false;
+            }
+            return $node->name instanceof Expr;
+        });
+    }
+
+    /**
+     * @param PropertyFetch|StaticPropertyFetch $node
+     */
+    private function isReadContext(Node $node): bool
+    {
+        $parentNode = $node->getAttribute(AttributeKey::PARENT_NODE);
+        if ($parentNode instanceof PreInc || $parentNode instanceof PreDec || $parentNode instanceof PostInc || $parentNode instanceof PostDec) {
+            $parentNode = $parentNode->getAttribute(AttributeKey::PARENT_NODE);
+        }
+
+        if ($parentNode instanceof Arg) {
+            return true;
+        }
+
+        return ! $this->assignManipulator->isNodeLeftPartOfAssign($node);
     }
 }

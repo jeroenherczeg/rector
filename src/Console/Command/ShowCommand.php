@@ -1,28 +1,33 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Console\Command;
+declare(strict_types=1);
 
-use Rector\Console\Shell;
-use Rector\Contract\Rector\RectorInterface;
-use Rector\Php\TypeAnalyzer;
+namespace Rector\Core\Console\Command;
+
+use Rector\Core\Contract\Rector\RectorInterface;
+use Rector\Core\NeonYaml\YamlPrinter;
+use Rector\Core\Php\TypeAnalyzer;
+use Rector\PostRector\Contract\Rector\PostRectorInterface;
+use Rector\Utils\DoctrineAnnotationParserSyncer\Contract\Rector\ClassSyncerRectorInterface;
 use ReflectionClass;
+use ReflectionNamedType;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Yaml\Yaml;
 use Symplify\PackageBuilder\Console\Command\CommandNaming;
+use Symplify\PackageBuilder\Console\ShellCode;
 
 final class ShowCommand extends AbstractCommand
 {
     /**
-     * @var SymfonyStyle
-     */
-    private $symfonyStyle;
-
-    /**
      * @var RectorInterface[]
      */
     private $rectors = [];
+
+    /**
+     * @var SymfonyStyle
+     */
+    private $symfonyStyle;
 
     /**
      * @var TypeAnalyzer
@@ -30,15 +35,25 @@ final class ShowCommand extends AbstractCommand
     private $typeAnalyzer;
 
     /**
+     * @var YamlPrinter
+     */
+    private $yamlPrinter;
+
+    /**
      * @param RectorInterface[] $rectors
      */
-    public function __construct(SymfonyStyle $symfonyStyle, array $rectors, TypeAnalyzer $typeAnalyzer)
-    {
+    public function __construct(
+        SymfonyStyle $symfonyStyle,
+        array $rectors,
+        TypeAnalyzer $typeAnalyzer,
+        YamlPrinter $yamlPrinter
+    ) {
         $this->symfonyStyle = $symfonyStyle;
         $this->rectors = $rectors;
+        $this->typeAnalyzer = $typeAnalyzer;
+        $this->yamlPrinter = $yamlPrinter;
 
         parent::__construct();
-        $this->typeAnalyzer = $typeAnalyzer;
     }
 
     protected function configure(): void
@@ -49,26 +64,27 @@ final class ShowCommand extends AbstractCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        sort($this->rectors);
+        $rectors = $this->filterAndSortRectors($this->rectors);
 
-        foreach ($this->rectors as $rector) {
+        foreach ($rectors as $rector) {
             $this->symfonyStyle->writeln(' * ' . get_class($rector));
             $configuration = $this->resolveConfiguration($rector);
             if ($configuration === []) {
                 continue;
             }
 
-            $configurationYamlContent = Yaml::dump($configuration, 10, 4, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK);
+            $configurationYamlContent = $this->yamlPrinter->printYamlToString($configuration);
 
             $lines = explode(PHP_EOL, $configurationYamlContent);
             $indentedContent = '      ' . implode(PHP_EOL . '      ', $lines);
 
             $this->symfonyStyle->writeln($indentedContent);
         }
+        $message = sprintf('%d loaded Rectors', count($rectors));
 
-        $this->symfonyStyle->success(sprintf('%d loaded Rectors', count($this->rectors)));
+        $this->symfonyStyle->success($message);
 
-        return Shell::CODE_SUCCESS;
+        return ShellCode::SUCCESS;
     }
 
     /**
@@ -77,25 +93,26 @@ final class ShowCommand extends AbstractCommand
      */
     private function resolveConfiguration(RectorInterface $rector): array
     {
-        $rectorReflection = new ReflectionClass($rector);
+        $reflectionClass = new ReflectionClass($rector);
 
-        $constructorReflection = $rectorReflection->getConstructor();
+        $constructorReflection = $reflectionClass->getConstructor();
         if ($constructorReflection === null) {
             return [];
         }
 
         $configuration = [];
         foreach ($constructorReflection->getParameters() as $reflectionParameter) {
-            $parameterType = (string) $reflectionParameter->getType();
-            if (! $this->typeAnalyzer->isPhpReservedType($parameterType)) {
+            $parameterType = $reflectionParameter->getType();
+            $parameterTypeName = (string) ($parameterType instanceof ReflectionNamedType ? $parameterType->getName() : null);
+            if (! $this->typeAnalyzer->isPhpReservedType($parameterTypeName)) {
                 continue;
             }
 
-            if (! $rectorReflection->hasProperty($reflectionParameter->getName())) {
+            if (! $reflectionClass->hasProperty($reflectionParameter->getName())) {
                 continue;
             }
 
-            $propertyReflection = $rectorReflection->getProperty($reflectionParameter->getName());
+            $propertyReflection = $reflectionClass->getProperty($reflectionParameter->getName());
             $propertyReflection->setAccessible(true);
 
             $configurationValue = $propertyReflection->getValue($rector);
@@ -103,5 +120,24 @@ final class ShowCommand extends AbstractCommand
         }
 
         return $configuration;
+    }
+
+    /**
+     * @param RectorInterface[] $rectors
+     * @return RectorInterface[]
+     */
+    private function filterAndSortRectors(array $rectors): array
+    {
+        sort($rectors);
+
+        return array_filter($rectors, function (RectorInterface $rector) {
+            // utils rules
+            if ($rector instanceof ClassSyncerRectorInterface) {
+                return false;
+            }
+
+            // skip as internal and always run
+            return ! $rector instanceof PostRectorInterface;
+        });
     }
 }

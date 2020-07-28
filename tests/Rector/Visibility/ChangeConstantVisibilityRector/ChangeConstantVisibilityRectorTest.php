@@ -1,26 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Visibility\ChangeConstantVisibilityRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Visibility\ChangeConstantVisibilityRector;
 
 use Iterator;
-use Rector\Rector\Visibility\ChangeConstantVisibilityRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Visibility\ChangeConstantVisibilityRector\Source\ParentObject;
+use Rector\Core\Rector\Visibility\ChangeConstantVisibilityRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Visibility\ChangeConstantVisibilityRector\Source\ParentObject;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ChangeConstantVisibilityRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**
@@ -36,7 +38,7 @@ final class ChangeConstantVisibilityRectorTest extends AbstractRectorTestCase
                         'TO_BE_PROTECTED_CONSTANT' => 'protected',
                         'TO_BE_PRIVATE_CONSTANT' => 'private',
                     ],
-                    'Rector\Tests\Rector\Visibility\ChangePropertyVisibilityRector\Source\AnotherClassWithInvalidConstants' => [
+                    'Rector\Core\Tests\Rector\Visibility\ChangePropertyVisibilityRector\Source\AnotherClassWithInvalidConstants' => [
                         'TO_BE_PRIVATE_CONSTANT' => 'private',
                     ],
                 ],

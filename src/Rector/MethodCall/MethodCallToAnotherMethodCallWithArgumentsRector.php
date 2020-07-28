@@ -1,16 +1,18 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\MethodCall;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\MethodCall;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\MethodCall\MethodCallToAnotherMethodCallWithArgumentsRector\MethodCallToAnotherMethodCallWithArgumentsRectorTest
+ * @see \Rector\Core\Tests\Rector\MethodCall\MethodCallToAnotherMethodCallWithArgumentsRector\MethodCallToAnotherMethodCallWithArgumentsRectorTest
  */
 final class MethodCallToAnotherMethodCallWithArgumentsRector extends AbstractRector
 {
@@ -69,7 +71,7 @@ PHP
             }
 
             foreach ($oldMethodsToNewMethodsWithArgs as $oldMethod => $newMethodsWithArgs) {
-                if (! $this->isName($node, $oldMethod)) {
+                if (! $this->isName($node->name, $oldMethod)) {
                     continue;
                 }
 

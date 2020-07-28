@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Architecture\Factory;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Architecture\Factory;
 
 use Nette\Utils\Strings;
 use PhpParser\Node;
@@ -10,14 +12,14 @@ use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\Class_;
 use PHPStan\Type\ObjectType;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
 use ReflectionClass;
 
 /**
- * @see \Rector\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector\NewObjectToFactoryCreateRectorTest
+ * @see \Rector\Core\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector\NewObjectToFactoryCreateRectorTest
  */
 final class NewObjectToFactoryCreateRector extends AbstractRector
 {
@@ -118,9 +120,9 @@ PHP
         return $node;
     }
 
-    private function getExistingFactoryPropertyName(Class_ $classNode, string $factoryClass): ?string
+    private function getExistingFactoryPropertyName(Class_ $class, string $factoryClass): ?string
     {
-        foreach ($classNode->getProperties() as $property) {
+        foreach ($class->getProperties() as $property) {
             if ($this->isObjectType($property, $factoryClass)) {
                 return (string) $property->props[0]->name;
             }
@@ -131,8 +133,9 @@ PHP
 
     private function getFactoryPropertyName(string $factoryFullQualifiedName): string
     {
-        $className = (new ReflectionClass($factoryFullQualifiedName))->getShortName();
+        $reflectionClass = new ReflectionClass($factoryFullQualifiedName);
+        $shortName = $reflectionClass->getShortName();
 
-        return Strings::firstLower($className);
+        return Strings::firstLower($shortName);
     }
 }

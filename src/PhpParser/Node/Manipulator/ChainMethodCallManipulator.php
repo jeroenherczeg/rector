@@ -1,13 +1,15 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node\Manipulator;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node\Manipulator;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\Type;
+use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\NodeTypeResolver;
-use Rector\PhpParser\Node\Resolver\NameResolver;
 
 /**
  * Read-only utils for chain of MethodCall Node:
@@ -21,14 +23,14 @@ final class ChainMethodCallManipulator
     private $nodeTypeResolver;
 
     /**
-     * @var NameResolver
+     * @var NodeNameResolver
      */
-    private $nameResolver;
+    private $nodeNameResolver;
 
-    public function __construct(NodeTypeResolver $nodeTypeResolver, NameResolver $nameResolver)
+    public function __construct(NodeNameResolver $nodeNameResolver, NodeTypeResolver $nodeTypeResolver)
     {
         $this->nodeTypeResolver = $nodeTypeResolver;
-        $this->nameResolver = $nameResolver;
+        $this->nodeNameResolver = $nodeNameResolver;
     }
 
     /**
@@ -46,7 +48,7 @@ final class ChainMethodCallManipulator
         $methods = array_reverse($methods);
 
         foreach ($methods as $method) {
-            $activeMethodName = $this->nameResolver->getName($node);
+            $activeMethodName = $this->nodeNameResolver->getName($node->name);
             if ($activeMethodName !== $method) {
                 return false;
             }

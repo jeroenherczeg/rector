@@ -1,24 +1,187 @@
 #!/usr/bin/env php
-<?php declare(strict_types=1);
+<?php
 
-use Composer\XdebugHandler\XdebugHandler;
-use Psr\Container\ContainerInterface;
-use Rector\Console\Application;
+declare(strict_types=1);
+
+use Rector\Caching\ChangedFilesDetector;
+use Rector\Core\Configuration\Configuration;
+use Rector\Core\Configuration\MinimalVersionChecker;
+use Rector\Core\Configuration\MinimalVersionChecker\ComposerJsonParser;
+use Rector\Core\Configuration\MinimalVersionChecker\ComposerJsonReader;
+use Rector\Core\Bootstrap\RectorConfigsResolver;
+use Rector\Core\Console\Application;
+use Rector\Core\Console\Style\SymfonyStyleFactory;
+use Rector\Core\DependencyInjection\RectorContainerFactory;
+use Symplify\PackageBuilder\Console\ShellCode;
+use Symplify\PackageBuilder\Reflection\PrivatesCaller;
 
 @ini_set('memory_limit', '-1'); // @ intentionally: continue anyway
 
 // Performance boost
+error_reporting(E_ALL);
+ini_set('display_errors', 'stderr');
 gc_disable();
 
+define('__RECTOR_RUNNING__', true);
+
 // Require Composer autoload.php
-require_once __DIR__ . '/bootstrap.php';
+$autoloadIncluder = new AutoloadIncluder();
+$autoloadIncluder->includeCwdVendorAutoloadIfExists();
+$autoloadIncluder->autoloadProjectAutoloaderFile('/../../autoload.php');
+$autoloadIncluder->includeDependencyOrRepositoryVendorAutoloadIfExists();
+$autoloadIncluder->autoloadFromCommandLine();
 
-$xdebug = new XdebugHandler('rector', '--ansi');
-$xdebug->check();
-unset($xdebug);
+$symfonyStyleFactory = new SymfonyStyleFactory(new PrivatesCaller());
+$symfonyStyle = $symfonyStyleFactory->create();
 
-/** @var ContainerInterface $container */
-$container = require_once __DIR__ . '/container.php';
+try {
+    $composerJsonReader = new ComposerJsonReader(__DIR__ . '/../composer.json');
+    $versionChecker = new MinimalVersionChecker(
+        PHP_VERSION,
+        new ComposerJsonParser($composerJsonReader->read())
+    );
+    $versionChecker->check();
+
+    $rectorConfigsResolver = new RectorConfigsResolver();
+    $configFileInfos = $rectorConfigsResolver->provide();
+
+    // report YAML deprecated configs
+    foreach ($configFileInfos as $configFileInfo) {
+        if (! in_array($configFileInfo->getSuffix(), ['yml', 'yaml'], true)) {
+            continue;
+        }
+
+        $warning = sprintf(
+            'You are using YAML format in "%s" config.%sIt will be removed in Rector 0.8. Switch to PHP format as soon as possible with "%s"',
+            $configFileInfo->getRelativeFilePathFromCwd(),
+            PHP_EOL,
+            'https://github.com/migrify/config-transformer'
+        );
+
+        $symfonyStyle->warning($warning);
+
+        sleep(3);
+    }
+
+    // Build DI container
+    $rectorContainerFactory = new RectorContainerFactory();
+    $container = $rectorContainerFactory->createFromConfigs($configFileInfos);
+
+    /** @var Configuration $configuration */
+    $configuration = $container->get(Configuration::class);
+    $configuration->setFirstResolverConfigFileInfo($rectorConfigsResolver->getFirstResolvedConfig());
+
+    if ($rectorConfigsResolver->getFirstResolvedConfig()) {
+        /** @var ChangedFilesDetector $changedFilesDetector */
+        $changedFilesDetector = $container->get(ChangedFilesDetector::class);
+        $changedFilesDetector->setFirstResolvedConfigFileInfo($rectorConfigsResolver->getFirstResolvedConfig());
+    }
+
+} catch (Throwable $throwable) {
+    $symfonyStyle->error($throwable->getMessage());
+    exit(ShellCode::ERROR);
+}
 
 $application = $container->get(Application::class);
 exit($application->run());
+
+final class AutoloadIncluder
+{
+    /**
+     * @var string[]
+     */
+    private $alreadyLoadedAutoloadFiles = [];
+
+    public function includeCwdVendorAutoloadIfExists(): void
+    {
+        $cwdVendorAutoload = getcwd() . '/vendor/autoload.php';
+        if (!is_file($cwdVendorAutoload)) {
+            return;
+        }
+
+        $this->loadIfNotLoadedYet($cwdVendorAutoload, __METHOD__ . '()" on line ' . __LINE__);
+    }
+
+    public function includeDependencyOrRepositoryVendorAutoloadIfExists(): void
+    {
+        // Rector's vendor is already loaded
+        if (class_exists('Rector\HttpKernel\RectorKernel')) {
+            return;
+        }
+
+        $devOrPharVendorAutoload = __DIR__ . '/../vendor/autoload.php';
+        if (! is_file($devOrPharVendorAutoload)) {
+            return;
+        }
+
+        $this->loadIfNotLoadedYet($devOrPharVendorAutoload, __METHOD__ . '()" on line ' . __LINE__);
+    }
+
+    /**
+     * Inspired by https://github.com/phpstan/phpstan-src/blob/e2308ecaf49a9960510c47f5a992ce7b27f6dba2/bin/phpstan#L19
+     */
+    public function autoloadProjectAutoloaderFile(string $file): void
+    {
+        $path = dirname(__DIR__) . $file;
+        if (!extension_loaded('phar')) {
+            if (is_file($path)) {
+                $this->loadIfNotLoadedYet($path, __METHOD__ . '()" on line ' . __LINE__);
+            }
+            return;
+        }
+
+        $pharPath = Phar::running(false);
+        if ($pharPath === '') {
+            if (is_file($path)) {
+                $this->loadIfNotLoadedYet($path, __METHOD__ . '()" on line ' . __LINE__);
+            }
+        } else {
+            $path = dirname($pharPath) . $file;
+            if (is_file($path)) {
+                $this->loadIfNotLoadedYet($path, __METHOD__ . '()" on line ' . __LINE__);
+            }
+        }
+    }
+
+    public function autoloadFromCommandLine(): void
+    {
+        $cliArgs = $_SERVER['argv'];
+
+        $autoloadOptionPosition = array_search('-a', $cliArgs) ?: array_search('--autoload-file', $cliArgs);
+        if (! $autoloadOptionPosition) {
+            return;
+        }
+
+        $autoloadFileValuePosition = $autoloadOptionPosition + 1;
+        $fileToAutoload = $cliArgs[$autoloadFileValuePosition] ?? null;
+        if ($fileToAutoload=== null) {
+            return;
+        }
+
+        $this->loadIfNotLoadedYet($fileToAutoload, __METHOD__);
+    }
+
+    private function loadIfNotLoadedYet(string $file, string $location): void
+    {
+        if (in_array($file, $this->alreadyLoadedAutoloadFiles, true)) {
+            return;
+        }
+
+        if ($this->isDebugOption()) {
+            echo sprintf(sprintf(
+                'File "%s" is about to be loaded in "%s"' . PHP_EOL,
+                $file,
+                $location
+            ));
+        }
+
+        $this->alreadyLoadedAutoloadFiles[] = realpath($file);
+
+        require_once $file;
+    }
+
+    private function isDebugOption(): bool
+    {
+        return in_array('--debug', $_SERVER['argv'], true);
+    }
+}

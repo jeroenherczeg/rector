@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Namespace_;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Namespace_;
 
 use Nette\Utils\Strings;
 use PhpParser\Node;
@@ -13,15 +15,16 @@ use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Namespace_;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Use_;
-use Rector\Exception\ShouldNotHappenException;
+use Rector\Core\Exception\ShouldNotHappenException;
+use Rector\Core\PhpParser\Node\Manipulator\ClassInsertManipulator;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\PhpParser\Node\Manipulator\ClassManipulator;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\NodeTypeResolver\PhpDoc\PhpDocTypeRenamer;
 
 /**
- * @see \Rector\Tests\Rector\Namespace_\PseudoNamespaceToNamespaceRector\PseudoNamespaceToNamespaceRectorTest
+ * @see \Rector\Core\Tests\Rector\Namespace_\PseudoNamespaceToNamespaceRector\PseudoNamespaceToNamespaceRectorTest
  */
 final class PseudoNamespaceToNamespaceRector extends AbstractRector
 {
@@ -42,19 +45,26 @@ final class PseudoNamespaceToNamespaceRector extends AbstractRector
     private $namespacePrefixesWithExcludedClasses = [];
 
     /**
-     * @var ClassManipulator
+     * @var PhpDocTypeRenamer
      */
-    private $classManipulator;
+    private $phpDocTypeRenamer;
+
+    /**
+     * @var ClassInsertManipulator
+     */
+    private $classInsertManipulator;
 
     /**
      * @param string[][]|null[] $namespacePrefixesWithExcludedClasses
      */
     public function __construct(
-        ClassManipulator $classManipulator,
+        ClassInsertManipulator $classInsertManipulator,
+        PhpDocTypeRenamer $phpDocTypeRenamer,
         array $namespacePrefixesWithExcludedClasses = []
     ) {
-        $this->classManipulator = $classManipulator;
+        $this->phpDocTypeRenamer = $phpDocTypeRenamer;
         $this->namespacePrefixesWithExcludedClasses = $namespacePrefixesWithExcludedClasses;
+        $this->classInsertManipulator = $classInsertManipulator;
     }
 
     public function getDefinition(): RectorDefinition
@@ -98,7 +108,7 @@ PHP
     {
         // replace on @var/@param/@return/@throws
         foreach ($this->namespacePrefixesWithExcludedClasses as $namespacePrefix => $excludedClasses) {
-            $this->docBlockManipulator->changeUnderscoreType($node, $namespacePrefix, $excludedClasses ?? []);
+            $this->phpDocTypeRenamer->changeUnderscoreType($node, $namespacePrefix, $excludedClasses ?? []);
         }
 
         if ($node instanceof Name || $node instanceof Identifier) {
@@ -118,10 +128,10 @@ PHP
             return $nodes;
         }
 
-        $namespaceNode = new Namespace_(new Name($this->newNamespace));
+        $namespace = new Namespace_(new Name($this->newNamespace));
         foreach ($nodes as $key => $node) {
             if ($node instanceof Use_ || $node instanceof Class_) {
-                $nodes = $this->classManipulator->insertBeforeAndFollowWithNewline($nodes, $namespaceNode, $key);
+                $nodes = $this->classInsertManipulator->insertBefore($nodes, $namespace, $key);
 
                 break;
             }
@@ -130,6 +140,36 @@ PHP
         $this->newNamespace = null;
 
         return $nodes;
+    }
+
+    /**
+     * @param Name|Identifier $node
+     * @return Name|Identifier
+     */
+    private function processNameOrIdentifier(Node $node): ?Node
+    {
+        // no name → skip
+        if ($node->toString() === '') {
+            return null;
+        }
+
+        foreach ($this->namespacePrefixesWithExcludedClasses as $namespacePrefix => $excludedClasses) {
+            if (! $this->isName($node, $namespacePrefix . '*')) {
+                continue;
+            }
+
+            if (is_array($excludedClasses) && $this->isNames($node, $excludedClasses)) {
+                return null;
+            }
+
+            if ($node instanceof Name) {
+                return $this->processName($node);
+            }
+
+            return $this->processIdentifier($node);
+        }
+
+        return null;
     }
 
     private function processName(Name $name): Name
@@ -172,35 +212,5 @@ PHP
         $identifier->name = $lastNewNamePart;
 
         return $identifier;
-    }
-
-    /**
-     * @param Name|Identifier $node
-     * @return Name|Identifier
-     */
-    private function processNameOrIdentifier(Node $node): ?Node
-    {
-        // no name → skip
-        if ($node->toString() === '') {
-            return null;
-        }
-
-        foreach ($this->namespacePrefixesWithExcludedClasses as $namespacePrefix => $excludedClasses) {
-            if (! $this->isName($node, $namespacePrefix . '*')) {
-                continue;
-            }
-
-            if (is_array($excludedClasses) && $this->isNames($node, $excludedClasses)) {
-                return null;
-            }
-
-            if ($node instanceof Name) {
-                return $this->processName($node);
-            }
-
-            return $this->processIdentifier($node);
-        }
-
-        return null;
     }
 }

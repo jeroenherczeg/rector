@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\Source;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\Source;
 
 final class AnotherService
 {

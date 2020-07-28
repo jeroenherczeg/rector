@@ -1,15 +1,17 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\New_;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\New_;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\New_;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\New_\NewToStaticCallRector\NewToStaticCallRectorTest
+ * @see \Rector\Core\Tests\Rector\New_\NewToStaticCallRector\NewToStaticCallRectorTest
  */
 final class NewToStaticCallRector extends AbstractRector
 {
@@ -51,7 +53,9 @@ class SomeClass
 PHP
                 ,
                 [
-                    'Cookie' => [['Cookie', 'create']],
+                    '$typeToStaticCalls' => [
+                        'Cookie' => ['Cookie', 'create'],
+                    ],
                 ]
             ),
         ]);
@@ -78,6 +82,6 @@ PHP
             return $this->createStaticCall($staticCall[0], $staticCall[1], $node->args);
         }
 
-        return $node;
+        return null;
     }
 }

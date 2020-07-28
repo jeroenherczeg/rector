@@ -1,31 +1,27 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Namespace_\PseudoNamespaceToNamespaceRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Namespace_\PseudoNamespaceToNamespaceRector;
 
 use Iterator;
-use Rector\Rector\Namespace_\PseudoNamespaceToNamespaceRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Rector\Namespace_\PseudoNamespaceToNamespaceRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class PseudoNamespaceToNamespaceRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture3.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture4.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture5.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture6.php.inc'];
-        yield [__DIR__ . '/Fixture/var_doc.php.inc'];
-        yield [__DIR__ . '/Fixture/use_statement.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**
@@ -39,7 +35,7 @@ final class PseudoNamespaceToNamespaceRectorTest extends AbstractRectorTestCase
                     // namespace prefix => excluded classes
                     'PHPUnit_' => ['PHPUnit_Framework_MockObject_MockObject'],
                     'ChangeMe_' => ['KeepMe_'],
-                    'Rector_Tests_Rector_Namespace__PseudoNamespaceToNamespaceRector_Fixture_' => [],
+                    'Rector_Core_Tests_Rector_Namespace__PseudoNamespaceToNamespaceRector_Fixture_' => [],
                 ],
             ],
         ];

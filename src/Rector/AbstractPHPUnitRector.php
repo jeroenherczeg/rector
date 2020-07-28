@@ -1,21 +1,44 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector;
+declare(strict_types=1);
 
+namespace Rector\Core\Rector;
+
+use Nette\Utils\Strings;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
+use PhpParser\Node\Stmt\ClassMethod;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 
 abstract class AbstractPHPUnitRector extends AbstractRector
 {
+    protected function isTestClassMethod(ClassMethod $classMethod): bool
+    {
+        if (! $classMethod->isPublic()) {
+            return false;
+        }
+
+        if ($this->isName($classMethod, 'test*')) {
+            return true;
+        }
+
+        $docComment = $classMethod->getDocComment();
+        if ($docComment !== null) {
+            return (bool) Strings::match($docComment->getText(), '#@test\b#');
+        }
+
+        return false;
+    }
+
     protected function isPHPUnitMethodName(Node $node, string $name): bool
     {
         if (! $this->isPHPUnitTestCaseCall($node)) {
             return false;
         }
 
-        return $this->isName($node, $name);
+        /** @var StaticCall|MethodCall $node */
+        return $this->isName($node->name, $name);
     }
 
     /**
@@ -27,17 +50,18 @@ abstract class AbstractPHPUnitRector extends AbstractRector
             return false;
         }
 
-        return $this->isNames($node, $names);
+        /** @var MethodCall|StaticCall $node */
+        return $this->isNames($node->name, $names);
     }
 
     protected function isInTestClass(Node $node): bool
     {
-        $classNode = $node->getAttribute(AttributeKey::CLASS_NODE);
-        if ($classNode === null) {
+        $classLike = $node->getAttribute(AttributeKey::CLASS_NODE);
+        if ($classLike === null) {
             return false;
         }
 
-        return $this->isObjectTypes($classNode, ['PHPUnit\Framework\TestCase', 'PHPUnit_Framework_TestCase']);
+        return $this->isObjectTypes($classLike, ['PHPUnit\Framework\TestCase', 'PHPUnit_Framework_TestCase']);
     }
 
     /**

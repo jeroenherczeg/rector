@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\AbstractRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\AbstractRector;
 
 use PhpParser\Node\Expr;
-use Rector\PhpParser\Node\Value\ValueResolver;
+use Rector\Core\PhpParser\Node\Value\ValueResolver;
 
 /**
  * This could be part of @see AbstractRector, but decopuling to trait
@@ -19,17 +21,17 @@ trait ValueResolverTrait
     /**
      * @required
      */
-    public function setValueResolver(ValueResolver $valueResolver): void
+    public function autowireValueResolverTrait(ValueResolver $valueResolver): void
     {
         $this->valueResolver = $valueResolver;
     }
 
     /**
-     * @return mixed
+     * @return mixed|mixed[]
      */
-    protected function getValue(Expr $expr)
+    protected function getValue(Expr $expr, bool $resolvedClassReference = false)
     {
-        return $this->valueResolver->getValue($expr);
+        return $this->valueResolver->getValue($expr, $resolvedClassReference);
     }
 
     /**
@@ -38,5 +40,19 @@ trait ValueResolverTrait
     protected function isValue(Expr $expr, $expectedValue): bool
     {
         return $this->getValue($expr) === $expectedValue;
+    }
+
+    /**
+     * @param mixed[] $expectedValues
+     */
+    protected function isValues(Expr $expr, array $expectedValues): bool
+    {
+        foreach ($expectedValues as $expectedValue) {
+            if ($this->isValue($expr, $expectedValue)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

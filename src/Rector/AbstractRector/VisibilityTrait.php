@@ -1,14 +1,16 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\AbstractRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\AbstractRector;
 
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassConst;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
-use Rector\Exception\ShouldNotHappenException;
-use Rector\PhpParser\Node\Manipulator\VisibilityManipulator;
+use Rector\Core\Exception\ShouldNotHappenException;
+use Rector\Core\PhpParser\Node\Manipulator\VisibilityManipulator;
 
 /**
  * This could be part of @see AbstractRector, but decopuling to trait

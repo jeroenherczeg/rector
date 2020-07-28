@@ -1,13 +1,16 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Printer;
+declare(strict_types=1);
 
-use Nette\Utils\FileSystem;
+namespace Rector\Core\PhpParser\Printer;
+
 use PhpParser\Node;
-use Symplify\PackageBuilder\FileSystem\SmartFileInfo;
+use Rector\Core\ValueObject\Application\ParsedStmtsAndTokens;
+use Symplify\SmartFileSystem\SmartFileInfo;
+use Symplify\SmartFileSystem\SmartFileSystem;
 
 /**
- * @see \Rector\Tests\PhpParser\Printer\FormatPerservingPrinterTest
+ * @see \Rector\Core\Tests\PhpParser\Printer\FormatPerservingPrinterTest
  */
 final class FormatPerservingPrinter
 {
@@ -16,9 +19,15 @@ final class FormatPerservingPrinter
      */
     private $betterStandardPrinter;
 
-    public function __construct(BetterStandardPrinter $betterStandardPrinter)
+    /**
+     * @var SmartFileSystem
+     */
+    private $smartFileSystem;
+
+    public function __construct(BetterStandardPrinter $betterStandardPrinter, SmartFileSystem $smartFileSystem)
     {
         $this->betterStandardPrinter = $betterStandardPrinter;
+        $this->smartFileSystem = $smartFileSystem;
     }
 
     /**
@@ -30,7 +39,8 @@ final class FormatPerservingPrinter
     {
         $newContent = $this->printToString($newStmts, $oldStmts, $oldTokens);
 
-        FileSystem::write($fileInfo->getRealPath(), $newContent, $fileInfo->getPerms());
+        $this->smartFileSystem->dumpFile($fileInfo->getRealPath(), $newContent);
+        $this->smartFileSystem->chmod($fileInfo->getRealPath(), $fileInfo->getPerms());
 
         return $newContent;
     }
@@ -43,5 +53,23 @@ final class FormatPerservingPrinter
     public function printToString(array $newStmts, array $oldStmts, array $oldTokens): string
     {
         return $this->betterStandardPrinter->printFormatPreserving($newStmts, $oldStmts, $oldTokens);
+    }
+
+    public function printParsedStmstAndTokensToString(ParsedStmtsAndTokens $parsedStmtsAndTokens): string
+    {
+        return $this->betterStandardPrinter->printFormatPreserving($parsedStmtsAndTokens->getNewStmts(),
+            $parsedStmtsAndTokens->getOldStmts(), $parsedStmtsAndTokens->getOldTokens());
+    }
+
+    public function printParsedStmstAndTokens(
+        SmartFileInfo $smartFileInfo,
+        ParsedStmtsAndTokens $parsedStmtsAndTokens
+    ): string {
+        return $this->printToFile(
+            $smartFileInfo,
+            $parsedStmtsAndTokens->getNewStmts(),
+            $parsedStmtsAndTokens->getOldStmts(),
+            $parsedStmtsAndTokens->getOldTokens()
+        );
     }
 }

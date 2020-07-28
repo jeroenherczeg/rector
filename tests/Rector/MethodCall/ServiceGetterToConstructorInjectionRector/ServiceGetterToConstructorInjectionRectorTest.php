@@ -1,26 +1,34 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector;
 
 use Iterator;
-use Rector\Rector\MethodCall\ServiceGetterToConstructorInjectionRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\Source\AnotherService;
-use Rector\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\Source\FirstService;
+use Rector\Core\Rector\MethodCall\ServiceGetterToConstructorInjectionRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\Source\AnotherService;
+use Rector\Core\Tests\Rector\MethodCall\ServiceGetterToConstructorInjectionRector\Source\FirstService;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ServiceGetterToConstructorInjectionRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
+    }
+
+    protected function getPhpVersion(): string
+    {
+        return '7.2';
     }
 
     /**

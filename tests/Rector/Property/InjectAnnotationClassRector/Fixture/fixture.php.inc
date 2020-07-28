@@ -1,6 +1,6 @@
 <?php
 
-namespace Rector\Tests\Rector\Property\InjectAnnotationClassRector\Fixture;
+namespace Rector\Core\Tests\Rector\Property\InjectAnnotationClassRector\Fixture;
 
 use JMS\DiExtraBundle\Annotation as DI;
 
@@ -15,18 +15,13 @@ class SomeController
      * @DI\Inject("translator", strict = false, required = false)
      */
     private $translator;
-
-    /**
-     * @DI\Inject("%kernel.cache_dir%")
-     */
-    private $cacheDir;
 }
 
 ?>
 -----
 <?php
 
-namespace Rector\Tests\Rector\Property\InjectAnnotationClassRector\Fixture;
+namespace Rector\Core\Tests\Rector\Property\InjectAnnotationClassRector\Fixture;
 
 use JMS\DiExtraBundle\Annotation as DI;
 
@@ -41,11 +36,6 @@ class SomeController
      * @var \Rector\Symfony\Tests\Rector\FrameworkBundle\AbstractToConstructorInjectionRectorSource\SomeTranslatorInterface
      */
     private $translator;
-
-    /**
-     * @DI\Inject("%kernel.cache_dir%")
-     */
-    private $cacheDir;
     public function __construct(\Rector\Symfony\Tests\Rector\FrameworkBundle\AbstractToConstructorInjectionRectorSource\SomeEntityManager $entityManager, \Rector\Symfony\Tests\Rector\FrameworkBundle\AbstractToConstructorInjectionRectorSource\SomeTranslatorInterface $translator)
     {
         $this->entityManager = $entityManager;

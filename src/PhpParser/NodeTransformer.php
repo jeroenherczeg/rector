@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser;
 
 use Nette\Utils\Strings;
 use PhpParser\Node;
@@ -12,6 +14,7 @@ use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\Yield_;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 
 final class NodeTransformer
 {
@@ -82,14 +85,14 @@ final class NodeTransformer
     /**
      * @return Expression[]
      */
-    public function transformArrayToYields(Array_ $arrayNode): array
+    public function transformArrayToYields(Array_ $array): array
     {
         $yieldNodes = [];
 
-        foreach ($arrayNode->items as $arrayItem) {
+        foreach ($array->items as $arrayItem) {
             $expressionNode = new Expression(new Yield_($arrayItem->value, $arrayItem->key));
             if ($arrayItem->getComments() !== []) {
-                $expressionNode->setAttribute('comments', $arrayItem->getComments());
+                $expressionNode->setAttribute(AttributeKey::COMMENTS, $arrayItem->getComments());
             }
 
             $yieldNodes[] = $expressionNode;

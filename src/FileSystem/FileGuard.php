@@ -1,8 +1,10 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\FileSystem;
+declare(strict_types=1);
 
-use Rector\Exception\FileSystem\FileNotFoundException;
+namespace Rector\Core\FileSystem;
+
+use Rector\Core\Exception\FileSystem\FileNotFoundException;
 
 final class FileGuard
 {

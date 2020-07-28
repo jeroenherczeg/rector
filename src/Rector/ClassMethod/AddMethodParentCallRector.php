@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\ClassMethod;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\ClassMethod;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\StaticCall;
@@ -8,13 +10,13 @@ use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\CodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\CodeSample;
-use Rector\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\ClassMethod\AddMethodParentCallRector\AddMethodParentCallRectorTest
+ * @see \Rector\Core\Tests\Rector\ClassMethod\AddMethodParentCallRector\AddMethodParentCallRectorTest
  */
 final class AddMethodParentCallRector extends AbstractRector
 {
@@ -33,9 +35,11 @@ final class AddMethodParentCallRector extends AbstractRector
 
     public function getDefinition(): RectorDefinition
     {
-        return new RectorDefinition('Add method parent call, in case new parent method is added', [
-            new CodeSample(
-                <<<'PHP'
+        return new RectorDefinition(
+            'Add method parent call, in case new parent method is added',
+            [
+                new CodeSample(
+                    <<<'PHP'
 class SunshineCommand extends ParentClassWithNewConstructor
 {
     public function __construct()
@@ -44,8 +48,8 @@ class SunshineCommand extends ParentClassWithNewConstructor
     }
 }
 PHP
-                ,
-                <<<'PHP'
+                    ,
+                    <<<'PHP'
 class SunshineCommand extends ParentClassWithNewConstructor
 {
     public function __construct()
@@ -56,8 +60,9 @@ class SunshineCommand extends ParentClassWithNewConstructor
     }
 }
 PHP
-            ),
-        ]);
+                ),
+            ]
+        );
     }
 
     /**
@@ -73,8 +78,8 @@ PHP
      */
     public function refactor(Node $node): ?Node
     {
-        $class = $node->getAttribute(AttributeKey::CLASS_NODE);
-        if ($class === null) {
+        $classLike = $node->getAttribute(AttributeKey::CLASS_NODE);
+        if ($classLike === null) {
             return null;
         }
 
@@ -82,7 +87,7 @@ PHP
         $className = $node->getAttribute(AttributeKey::CLASS_NAME);
 
         foreach ($this->methodsByParentTypes as $type => $methods) {
-            if (! $this->isObjectType($class, $type)) {
+            if (! $this->isObjectType($classLike, $type)) {
                 continue;
             }
 
@@ -105,6 +110,22 @@ PHP
         return null;
     }
 
+    private function shouldSkipMethod(ClassMethod $classMethod, string $method): bool
+    {
+        if (! $this->isName($classMethod, $method)) {
+            return true;
+        }
+
+        return $this->hasParentCallOfMethod($classMethod, $method);
+    }
+
+    private function createParentStaticCall(string $method): Expression
+    {
+        $staticCall = new StaticCall(new Name('parent'), new Identifier($method));
+
+        return new Expression($staticCall);
+    }
+
     /**
      * Looks for "parent::<methodName>
      */
@@ -113,31 +134,7 @@ PHP
         return (bool) $this->betterNodeFinder->findFirst((array) $classMethod->stmts, function (Node $node) use (
             $method
         ): bool {
-            if (! $node instanceof StaticCall) {
-                return false;
-            }
-
-            if (! $this->isName($node->class, 'parent')) {
-                return false;
-            }
-
-            return $this->isName($node, $method);
+            return $this->isStaticCallNamed($node, 'parent', $method);
         });
-    }
-
-    private function createParentStaticCall(string $method): Expression
-    {
-        $parentStaticCall = new StaticCall(new Name('parent'), new Identifier($method));
-
-        return new Expression($parentStaticCall);
-    }
-
-    private function shouldSkipMethod(ClassMethod $classMethod, string $method): bool
-    {
-        if (! $this->isName($classMethod, $method)) {
-            return true;
-        }
-
-        return $this->hasParentCallOfMethod($classMethod, $method);
     }
 }

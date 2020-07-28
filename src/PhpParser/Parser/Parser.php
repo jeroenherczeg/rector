@@ -1,11 +1,14 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Parser;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Parser;
 
 use Nette\Utils\FileSystem;
 use PhpParser\Node;
 use PhpParser\Node\Stmt;
 use PhpParser\Parser as NikicParser;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class Parser
 {
@@ -27,15 +30,17 @@ final class Parser
     /**
      * @return Node[]
      */
-    public function parseFile(string $filePath): array
+    public function parseFileInfo(SmartFileInfo $smartFileInfo): array
     {
-        if (isset($this->nodesByFile[$filePath])) {
-            return $this->nodesByFile[$filePath];
+        $fileRealPath = $smartFileInfo->getRealPath();
+
+        if (isset($this->nodesByFile[$fileRealPath])) {
+            return $this->nodesByFile[$fileRealPath];
         }
 
-        $fileContent = FileSystem::read($filePath);
-        $this->nodesByFile[$filePath] = (array) $this->nikicParser->parse($fileContent);
+        $fileContent = FileSystem::read($fileRealPath);
+        $this->nodesByFile[$fileRealPath] = (array) $this->nikicParser->parse($fileContent);
 
-        return $this->nodesByFile[$filePath];
+        return $this->nodesByFile[$fileRealPath];
     }
 }

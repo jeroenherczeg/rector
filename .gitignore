@@ -9,11 +9,15 @@ composer.lock
 .phpunit.result.cache
 
 # often customized locally - example on Github is just fine
-create-rector.yaml
-phpstan-dependencies.json
-phpstan-paths.txt
+create-rector.php
 
 # tests - travis
 /laravel-dir
 
-uuid-migration.json
+# compiler
+/compiler/composer.lock
+/compiler/vendor
+/tmp
+
+# testing
+abz

@@ -1,24 +1,27 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Argument\SwapFuncCallArgumentsRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Argument\SwapFuncCallArgumentsRector;
 
 use Iterator;
-use Rector\Rector\Argument\SwapFuncCallArgumentsRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Rector\Argument\SwapFuncCallArgumentsRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class SwapFuncCallArgumentsRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

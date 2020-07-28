@@ -1,21 +1,25 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node\Manipulator;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node\Manipulator;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\ClassConstFetch;
+use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassConst;
+use Rector\Core\PhpParser\Node\BetterNodeFinder;
+use Rector\Core\PhpParser\Printer\BetterStandardPrinter;
+use Rector\NodeCollector\NodeCollector\ParsedNodeCollector;
+use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\PhpParser\Node\BetterNodeFinder;
-use Rector\PhpParser\Node\Resolver\NameResolver;
-use Rector\PhpParser\Printer\BetterStandardPrinter;
 
 final class ClassConstManipulator
 {
     /**
-     * @var NameResolver
+     * @var NodeNameResolver
      */
-    private $nameResolver;
+    private $nodeNameResolver;
 
     /**
      * @var BetterNodeFinder
@@ -27,27 +31,52 @@ final class ClassConstManipulator
      */
     private $betterStandardPrinter;
 
+    /**
+     * @var ParsedNodeCollector
+     */
+    private $parsedNodeCollector;
+
+    /**
+     * @var ClassManipulator
+     */
+    private $classManipulator;
+
     public function __construct(
-        NameResolver $nameResolver,
         BetterNodeFinder $betterNodeFinder,
-        BetterStandardPrinter $betterStandardPrinter
+        BetterStandardPrinter $betterStandardPrinter,
+        ClassManipulator $classManipulator,
+        NodeNameResolver $nodeNameResolver,
+        ParsedNodeCollector $parsedNodeCollector
     ) {
-        $this->nameResolver = $nameResolver;
+        $this->nodeNameResolver = $nodeNameResolver;
         $this->betterNodeFinder = $betterNodeFinder;
         $this->betterStandardPrinter = $betterStandardPrinter;
+        $this->parsedNodeCollector = $parsedNodeCollector;
+        $this->classManipulator = $classManipulator;
     }
 
     /**
-     * @return ClassConst[]
+     * @return ClassConstFetch[]
      */
     public function getAllClassConstFetch(ClassConst $classConst): array
     {
-        $classNode = $classConst->getAttribute(AttributeKey::CLASS_NODE);
-        if ($classNode === null) {
+        /** @var Class_|null $classLike */
+        $classLike = $classConst->getAttribute(AttributeKey::CLASS_NODE);
+        if ($classLike === null) {
             return [];
         }
 
-        return $this->betterNodeFinder->find($classNode, function (Node $node) use ($classConst): bool {
+        $searchInNodes = [$classLike];
+        foreach ($this->classManipulator->getUsedTraits($classLike) as $trait) {
+            $trait = $this->parsedNodeCollector->findTrait((string) $trait);
+            if ($trait === null) {
+                continue;
+            }
+
+            $searchInNodes[] = $trait;
+        }
+
+        return $this->betterNodeFinder->find($searchInNodes, function (Node $node) use ($classConst): bool {
             // itself
             if ($this->betterStandardPrinter->areNodesEqual($node, $classConst)) {
                 return false;
@@ -64,7 +93,7 @@ final class ClassConstManipulator
 
     private function isNameMatch(Node $node, ClassConst $classConst): bool
     {
-        return $this->nameResolver->getName($node) === 'self::' . $this->nameResolver->getName($classConst)
-            || $this->nameResolver->getName($node) === 'static::' . $this->nameResolver->getName($classConst);
+        return $this->nodeNameResolver->getName($node) === 'self::' . $this->nodeNameResolver->getName($classConst)
+            || $this->nodeNameResolver->getName($node) === 'static::' . $this->nodeNameResolver->getName($classConst);
     }
 }

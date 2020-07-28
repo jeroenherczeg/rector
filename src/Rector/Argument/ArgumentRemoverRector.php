@@ -1,18 +1,20 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Argument;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Argument;
 
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Stmt\ClassMethod;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\Argument\ArgumentRemoverRector\ArgumentRemoverRectorTest
+ * @see \Rector\Core\Tests\Rector\Argument\ArgumentRemoverRector\ArgumentRemoverRectorTest
  */
 final class ArgumentRemoverRector extends AbstractRector
 {
@@ -78,7 +80,7 @@ PHP
             }
 
             foreach ($positionByMethodName as $methodName => $positions) {
-                if (! $this->isName($node, $methodName)) {
+                if (! $this->isName($node->name, $methodName)) {
                     continue;
                 }
 
@@ -123,23 +125,13 @@ PHP
     }
 
     /**
-     * @param mixed[] $values
-     */
-    private function isArgumentValueMatch(Arg $arg, array $values): bool
-    {
-        $nodeValue = $this->getValue($arg->value);
-
-        return in_array($nodeValue, $values, true);
-    }
-
-    /**
      * @param ClassMethod|StaticCall|MethodCall $node
      */
     private function removeByName(Node $node, int $position, string $name): void
     {
         if ($node instanceof MethodCall || $node instanceof StaticCall) {
             if (isset($node->args[$position]) && $this->isName($node->args[$position], $name)) {
-                unset($node->args[$position]);
+                $this->removeArg($node, $position);
             }
 
             return;
@@ -147,10 +139,20 @@ PHP
 
         if ($node instanceof ClassMethod) {
             if (isset($node->params[$position]) && $this->isName($node->params[$position], $name)) {
-                unset($node->params[$position]);
+                $this->removeParam($node, $position);
             }
 
             return;
         }
+    }
+
+    /**
+     * @param mixed[] $values
+     */
+    private function isArgumentValueMatch(Arg $arg, array $values): bool
+    {
+        $nodeValue = $this->getValue($arg->value);
+
+        return in_array($nodeValue, $values, true);
     }
 }

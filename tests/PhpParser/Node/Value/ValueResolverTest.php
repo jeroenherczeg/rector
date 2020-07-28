@@ -1,15 +1,17 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\PhpParser\Node\Value;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\PhpParser\Node\Value;
 
 use Iterator;
 use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\BinaryOp\Plus;
 use PhpParser\Node\Name\FullyQualified;
-use Rector\HttpKernel\RectorKernel;
+use Rector\Core\HttpKernel\RectorKernel;
+use Rector\Core\PhpParser\Node\Value\ValueResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\PhpParser\Node\Value\ValueResolver;
 use Symplify\PackageBuilder\Tests\AbstractKernelTestCase;
 
 final class ValueResolverTest extends AbstractKernelTestCase
@@ -26,8 +28,8 @@ final class ValueResolverTest extends AbstractKernelTestCase
     }
 
     /**
-     * @dataProvider dataProvider
      * @param mixed $expected
+     * @dataProvider dataProvider
      */
     public function test($expected, Expr $expr): void
     {

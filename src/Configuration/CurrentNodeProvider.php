@@ -1,13 +1,15 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Configuration;
+declare(strict_types=1);
+
+namespace Rector\Core\Configuration;
 
 use PhpParser\Node;
 
 final class CurrentNodeProvider
 {
     /**
-     * @var Node
+     * @var Node|null
      */
     private $node;
 
@@ -16,7 +18,7 @@ final class CurrentNodeProvider
         $this->node = $node;
     }
 
-    public function getNode(): Node
+    public function getNode(): ?Node
     {
         return $this->node;
     }

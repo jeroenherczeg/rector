@@ -1,7 +1,10 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\PhpParser\Node\BetterNodeFinder;
+declare(strict_types=1);
 
+namespace Rector\Core\Tests\PhpParser\Node\BetterNodeFinder;
+
+use Nette\Utils\FileSystem;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\Variable;
@@ -9,9 +12,9 @@ use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
-use Rector\HttpKernel\RectorKernel;
+use Rector\Core\HttpKernel\RectorKernel;
+use Rector\Core\PhpParser\Node\BetterNodeFinder;
 use Rector\NodeTypeResolver\NodeVisitor\ParentAndNextNodeVisitor;
-use Rector\PhpParser\Node\BetterNodeFinder;
 use Symplify\PackageBuilder\Tests\AbstractKernelTestCase;
 
 final class BetterNodeFinderTest extends AbstractKernelTestCase
@@ -36,15 +39,18 @@ final class BetterNodeFinderTest extends AbstractKernelTestCase
 
     public function testFindFirstAncestorInstanceOf(): void
     {
-        /** @var Variable $variableNode */
-        $variableNode = $this->betterNodeFinder->findFirstInstanceOf($this->nodes, Variable::class);
-        $classNode = $this->betterNodeFinder->findFirstInstanceOf($this->nodes, Class_::class);
+        $variable = $this->betterNodeFinder->findFirstInstanceOf($this->nodes, Variable::class);
+        $class = $this->betterNodeFinder->findFirstInstanceOf($this->nodes, Class_::class);
 
-        $this->assertInstanceOf(Variable::class, $variableNode);
-        $this->assertInstanceOf(Class_::class, $classNode);
+        $this->assertNotNull($variable);
+        $this->assertNotNull($class);
 
-        $classLikeNode = $this->betterNodeFinder->findFirstAncestorInstanceOf($variableNode, ClassLike::class);
-        $this->assertSame($classLikeNode, $classNode);
+        $this->assertInstanceOf(Variable::class, $variable);
+        $this->assertInstanceOf(Class_::class, $class);
+
+        /** @var Variable $variable */
+        $classLikeNode = $this->betterNodeFinder->findFirstAncestorInstanceOf($variable, ClassLike::class);
+        $this->assertSame($classLikeNode, $class);
     }
 
     public function testFindMissingFirstAncestorInstanceOf(): void
@@ -61,7 +67,7 @@ final class BetterNodeFinderTest extends AbstractKernelTestCase
     private function createNodesFromFile(string $filePath): array
     {
         $phpParser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
-        $nodes = $phpParser->parse(file_get_contents($filePath));
+        $nodes = $phpParser->parse(FileSystem::read($filePath));
         if ($nodes === null) {
             return [];
         }

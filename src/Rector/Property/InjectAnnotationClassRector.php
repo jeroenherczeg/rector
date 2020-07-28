@@ -1,52 +1,46 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Property;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Property;
 
 use DI\Annotation\Inject as PHPDIInject;
 use JMS\DiExtraBundle\Annotation\Inject as JMSInject;
+use Nette\Utils\Strings;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\Property;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocTagValueNode;
 use PHPStan\Type\MixedType;
+use PHPStan\Type\ObjectType;
 use PHPStan\Type\Type;
-use Rector\Application\ErrorAndDiffCollector;
+use Rector\BetterPhpDocParser\PhpDocInfo\PhpDocInfo;
 use Rector\BetterPhpDocParser\PhpDocNode\JMS\JMSInjectTagValueNode;
 use Rector\BetterPhpDocParser\PhpDocNode\PHPDI\PHPDIInjectTagValueNode;
-use Rector\Bridge\Contract\AnalyzedApplicationContainerInterface;
-use Rector\Exception\NotImplementedException;
-use Rector\Exception\ShouldNotHappenException;
+use Rector\ChangesReporting\Application\ErrorAndDiffCollector;
+use Rector\Core\Exception\NotImplementedException;
+use Rector\Core\Exception\ShouldNotHappenException;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
-use Symplify\PackageBuilder\FileSystem\SmartFileInfo;
-use Throwable;
+use Rector\Symfony\ServiceMapProvider;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 /**
  * @see https://jmsyst.com/bundles/JMSDiExtraBundle/master/annotations#inject
  *
- * @see \Rector\Tests\Rector\Property\InjectAnnotationClassRector\InjectAnnotationClassRectorTest
+ * @see \Rector\Core\Tests\Rector\Property\InjectAnnotationClassRector\InjectAnnotationClassRectorTest
  */
 final class InjectAnnotationClassRector extends AbstractRector
 {
     /**
      * @var string[]
      */
-    private $annotationToTagClass = [
+    private const ANNOTATION_TO_TAG_CLASS = [
         PHPDIInject::class => PHPDIInjectTagValueNode::class,
         JMSInject::class => JMSInjectTagValueNode::class,
     ];
-
-    /**
-     * @var AnalyzedApplicationContainerInterface
-     */
-    private $analyzedApplicationContainer;
-
-    /**
-     * @var ErrorAndDiffCollector
-     */
-    private $errorAndDiffCollector;
 
     /**
      * @var string[]
@@ -54,16 +48,26 @@ final class InjectAnnotationClassRector extends AbstractRector
     private $annotationClasses = [];
 
     /**
+     * @var ErrorAndDiffCollector
+     */
+    private $errorAndDiffCollector;
+
+    /**
+     * @var ServiceMapProvider
+     */
+    private $serviceMapProvider;
+
+    /**
      * @param string[] $annotationClasses
      */
     public function __construct(
-        AnalyzedApplicationContainerInterface $analyzedApplicationContainer,
+        ServiceMapProvider $serviceMapProvider,
         ErrorAndDiffCollector $errorAndDiffCollector,
         array $annotationClasses = []
     ) {
-        $this->analyzedApplicationContainer = $analyzedApplicationContainer;
         $this->errorAndDiffCollector = $errorAndDiffCollector;
         $this->annotationClasses = $annotationClasses;
+        $this->serviceMapProvider = $serviceMapProvider;
     }
 
     public function getDefinition(): RectorDefinition
@@ -93,7 +97,7 @@ class SomeController
      * @var EntityManager
      */
     private $entityManager;
-    
+
     public function __construct(EntityManager $entityManager)
     {
         $this->entityManager = entityManager;
@@ -122,21 +126,23 @@ PHP
      */
     public function refactor(Node $node): ?Node
     {
-        if ($node->getDocComment() === null) {
+        $phpDocInfo = $node->getAttribute(AttributeKey::PHP_DOC_INFO);
+        if ($phpDocInfo === null) {
             return null;
         }
-
-        $phpDocInfo = $this->docBlockManipulator->createPhpDocInfoFromNode($node);
 
         foreach ($this->annotationClasses as $annotationClass) {
             $this->ensureAnnotationClassIsSupported($annotationClass);
 
-            $tagClass = $this->annotationToTagClass[$annotationClass];
+            $tagClass = self::ANNOTATION_TO_TAG_CLASS[$annotationClass];
 
             $injectTagValueNode = $phpDocInfo->getByType($tagClass);
-
             if ($injectTagValueNode === null) {
                 continue;
+            }
+
+            if ($this->isParameterInject($injectTagValueNode)) {
+                return null;
             }
 
             $type = $this->resolveType($node, $injectTagValueNode);
@@ -145,6 +151,50 @@ PHP
         }
 
         return null;
+    }
+
+    private function ensureAnnotationClassIsSupported(string $annotationClass): void
+    {
+        if (isset(self::ANNOTATION_TO_TAG_CLASS[$annotationClass])) {
+            return;
+        }
+
+        throw new NotImplementedException(sprintf(
+            'Annotation class "%s" is not implemented yet. Use one of "%s" or add custom tag for it to Rector.',
+            $annotationClass,
+            implode('", "', array_keys(self::ANNOTATION_TO_TAG_CLASS))
+        ));
+    }
+
+    private function isParameterInject(PhpDocTagValueNode $phpDocTagValueNode): bool
+    {
+        if (! $phpDocTagValueNode instanceof JMSInjectTagValueNode) {
+            return false;
+        }
+
+        $serviceName = $phpDocTagValueNode->getServiceName();
+
+        if ($serviceName === null) {
+            return false;
+        }
+
+        return (bool) Strings::match($serviceName, '#%(.*?)%#');
+    }
+
+    private function resolveType(Node $node, PhpDocTagValueNode $phpDocTagValueNode): Type
+    {
+        if ($phpDocTagValueNode instanceof JMSInjectTagValueNode) {
+            return $this->resolveJMSDIInjectType($node, $phpDocTagValueNode);
+        }
+
+        if ($phpDocTagValueNode instanceof PHPDIInjectTagValueNode) {
+            /** @var PhpDocInfo $phpDocInfo */
+            $phpDocInfo = $node->getAttribute(AttributeKey::PHP_DOC_INFO);
+
+            return $phpDocInfo->getVarType();
+        }
+
+        throw new ShouldNotHappenException();
     }
 
     private function refactorPropertyWithAnnotation(Property $property, Type $type, string $tagClass): ?Property
@@ -158,75 +208,71 @@ PHP
             return null;
         }
 
-        $this->docBlockManipulator->changeVarTag($property, $type);
-        $this->docBlockManipulator->removeTagFromNode($property, $tagClass);
+        /** @var PhpDocInfo $phpDocInfo */
+        $phpDocInfo = $property->getAttribute(AttributeKey::PHP_DOC_INFO);
+        $phpDocInfo->changeVarType($type);
+        $phpDocInfo->removeByType($tagClass);
 
-        $classNode = $property->getAttribute(AttributeKey::CLASS_NODE);
-        if (! $classNode instanceof Class_) {
+        $classLike = $property->getAttribute(AttributeKey::CLASS_NODE);
+        if (! $classLike instanceof Class_) {
             throw new ShouldNotHappenException();
         }
 
-        $this->addPropertyToClass($classNode, $type, $name);
+        $this->addPropertyToClass($classLike, $type, $name);
 
         return $property;
     }
 
     private function resolveJMSDIInjectType(Node $node, JMSInjectTagValueNode $jmsInjectTagValueNode): Type
     {
+        $serviceMap = $this->serviceMapProvider->provide();
         $serviceName = $jmsInjectTagValueNode->getServiceName();
+
         if ($serviceName) {
-            try {
-                if ($this->analyzedApplicationContainer->hasService($serviceName)) {
-                    return $this->analyzedApplicationContainer->getTypeForName($serviceName);
+            // 1. service class
+            if (class_exists($serviceName)) {
+                return new ObjectType($serviceName);
+            }
+
+            // 2. service name
+            if ($serviceMap->hasService($serviceName)) {
+                $serviceType = $serviceMap->getServiceType($serviceName);
+                if ($serviceType !== null) {
+                    return $serviceType;
                 }
-            } catch (Throwable $throwable) {
-                // resolve later in errorAndDiffCollector if @var not found
             }
         }
 
-        $varType = $this->docBlockManipulator->getVarType($node);
+        // 3. service is in @var annotation
+        /** @var PhpDocInfo $phpDocInfo */
+        $phpDocInfo = $node->getAttribute(AttributeKey::PHP_DOC_INFO);
+
+        $varType = $phpDocInfo->getVarType();
         if (! $varType instanceof MixedType) {
             return $varType;
         }
 
         // the @var is missing and service name was not found → report it
-        if ($serviceName) {
-            /** @var SmartFileInfo $fileInfo */
-            $fileInfo = $node->getAttribute(AttributeKey::FILE_INFO);
-
-            $this->errorAndDiffCollector->addErrorWithRectorClassMessageAndFileInfo(
-                self::class,
-                sprintf('Service "%s" was not found in DI Container of your Symfony App.', $serviceName),
-                $fileInfo
-            );
-        }
+        $this->reportServiceNotFound($serviceName, $node);
 
         return new MixedType();
     }
 
-    private function ensureAnnotationClassIsSupported(string $annotationClass): void
+    private function reportServiceNotFound(?string $serviceName, Node $node): void
     {
-        if (isset($this->annotationToTagClass[$annotationClass])) {
+        if ($serviceName !== null) {
             return;
         }
 
-        throw new NotImplementedException(sprintf(
-            'Annotation class "%s" is not implemented yet. Use one of "%s" or add custom tag for it to Rector.',
-            $annotationClass,
-            implode('", "', array_keys($this->annotationToTagClass))
-        ));
-    }
+        /** @var SmartFileInfo $fileInfo */
+        $fileInfo = $node->getAttribute(AttributeKey::FILE_INFO);
 
-    private function resolveType(Node $node, PhpDocTagValueNode $phpDocTagValueNode): Type
-    {
-        if ($phpDocTagValueNode instanceof JMSInjectTagValueNode) {
-            return $this->resolveJMSDIInjectType($node, $phpDocTagValueNode);
-        }
+        $errorMessage = sprintf('Service "%s" was not found in DI Container of your Symfony App.', $serviceName);
 
-        if ($phpDocTagValueNode instanceof PHPDIInjectTagValueNode) {
-            return $this->docBlockManipulator->getVarType($node);
-        }
-
-        throw new ShouldNotHappenException();
+        $this->errorAndDiffCollector->addErrorWithRectorClassMessageAndFileInfo(
+            self::class,
+            $errorMessage,
+            $fileInfo
+        );
     }
 }

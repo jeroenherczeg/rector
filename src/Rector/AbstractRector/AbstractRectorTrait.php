@@ -1,16 +1,21 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\AbstractRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\AbstractRector;
 
 use Nette\Utils\Strings;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
+use Rector\ChangesReporting\Rector\AbstractRector\NotifyingRemovingNodeTrait;
 use Rector\Doctrine\AbstractRector\DoctrineTrait;
+use Rector\PostRector\Rector\AbstractRector\NodeCommandersTrait;
+use Rector\Reporting\Rector\AbstractRector\NodeReportCollectorTrait;
 
 trait AbstractRectorTrait
 {
-    use AppliedRectorCollectorTrait;
-    use DocBlockManipulatorTrait;
+    use PhpDocTrait;
+    use RemovedAndAddedFilesTrait;
     use DoctrineTrait;
     use NodeTypeResolverTrait;
     use NameResolverTrait;
@@ -21,6 +26,11 @@ trait AbstractRectorTrait
     use VisibilityTrait;
     use ValueResolverTrait;
     use CallableNodeTraverserTrait;
+    use ComplexRemovalTrait;
+    use NodeCollectorTrait;
+    use NotifyingRemovingNodeTrait;
+    use NodeCommentingTrait;
+    use NodeReportCollectorTrait;
 
     protected function isNonAnonymousClass(?Node $node): bool
     {
@@ -38,5 +48,10 @@ trait AbstractRectorTrait
         }
 
         return ! Strings::contains($name, 'AnonymousClass');
+    }
+
+    protected function removeFinal(Class_ $node): void
+    {
+        $node->flags -= Class_::MODIFIER_FINAL;
     }
 }

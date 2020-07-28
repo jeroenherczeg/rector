@@ -1,21 +1,21 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Class_;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Class_;
 
 use PhpParser\Node;
-use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Stmt\Class_;
-use PhpParser\Node\Stmt\TraitUse;
-use Rector\PhpParser\Node\Manipulator\ClassManipulator;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\PhpParser\Node\Manipulator\ClassInsertManipulator;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
  * Can handle cases like:
  * - https://doc.nette.org/en/2.4/migration-2-4#toc-nette-smartobject
  * - https://github.com/silverstripe/silverstripe-upgrader/issues/71#issue-320145944
- * @see \Rector\Tests\Rector\Class_\ParentClassToTraitsRector\ParentClassToTraitsRectorTest
+ * @see \Rector\Core\Tests\Rector\Class_\ParentClassToTraitsRector\ParentClassToTraitsRectorTest
  */
 final class ParentClassToTraitsRector extends AbstractRector
 {
@@ -25,17 +25,17 @@ final class ParentClassToTraitsRector extends AbstractRector
     private $parentClassToTraits = [];
 
     /**
-     * @var ClassManipulator
+     * @var ClassInsertManipulator
      */
-    private $classManipulator;
+    private $classInsertManipulator;
 
     /**
      * @param string[][] $parentClassToTraits { parent class => [ traits ] }
      */
-    public function __construct(ClassManipulator $classManipulator, array $parentClassToTraits = [])
+    public function __construct(ClassInsertManipulator $classInsertManipulator, array $parentClassToTraits = [])
     {
-        $this->classManipulator = $classManipulator;
         $this->parentClassToTraits = $parentClassToTraits;
+        $this->classInsertManipulator = $classInsertManipulator;
     }
 
     public function getDefinition(): RectorDefinition
@@ -90,8 +90,7 @@ PHP
         $traitNames = array_reverse($traitNames);
 
         foreach ($traitNames as $traitName) {
-            $traitUseNode = new TraitUse([new FullyQualified($traitName)]);
-            $this->classManipulator->addAsFirstTrait($node, $traitUseNode);
+            $this->classInsertManipulator->addAsFirstTrait($node, $traitName);
         }
 
         $this->removeParentClass($node);
@@ -99,8 +98,8 @@ PHP
         return $node;
     }
 
-    private function removeParentClass(Class_ $classNode): void
+    private function removeParentClass(Class_ $class): void
     {
-        $classNode->extends = null;
+        $class->extends = null;
     }
 }

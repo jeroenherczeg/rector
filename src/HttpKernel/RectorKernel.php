@@ -1,24 +1,31 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\HttpKernel;
+declare(strict_types=1);
 
-use Rector\Contract\Rector\RectorInterface;
-use Rector\DependencyInjection\CompilerPass\RemoveExcludedRectorsCompilerPass;
-use Rector\DependencyInjection\Loader\TolerantRectorYamlFileLoader;
+namespace Rector\Core\HttpKernel;
+
+use Rector\Core\Contract\Rector\RectorInterface;
+use Rector\Core\DependencyInjection\Collector\RectorServiceArgumentCollector;
+use Rector\Core\DependencyInjection\CompilerPass\MakeRectorsPublicCompilerPass;
+use Rector\Core\DependencyInjection\CompilerPass\MergeImportedRectorServiceArgumentsCompilerPass;
+use Rector\Core\DependencyInjection\CompilerPass\RemoveExcludedRectorsCompilerPass;
+use Rector\Core\DependencyInjection\Loader\TolerantRectorYamlFileLoader;
 use Symfony\Component\Config\Loader\DelegatingLoader;
 use Symfony\Component\Config\Loader\GlobFileLoader;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\Config\Loader\LoaderResolver;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Component\HttpKernel\Config\FileLocator;
 use Symfony\Component\HttpKernel\Kernel;
+use Symplify\AutoBindParameter\DependencyInjection\CompilerPass\AutoBindParameterCompilerPass;
+use Symplify\AutowireArrayParameter\DependencyInjection\CompilerPass\AutowireArrayParameterCompilerPass;
+use Symplify\ConsoleColorDiff\ConsoleColorDiffBundle;
 use Symplify\PackageBuilder\Contract\HttpKernel\ExtraConfigAwareKernelInterface;
-use Symplify\PackageBuilder\DependencyInjection\CompilerPass\AutoBindParametersCompilerPass;
-use Symplify\PackageBuilder\DependencyInjection\CompilerPass\AutoReturnFactoryCompilerPass;
-use Symplify\PackageBuilder\DependencyInjection\CompilerPass\AutowireArrayParameterCompilerPass;
 use Symplify\PackageBuilder\DependencyInjection\CompilerPass\AutowireInterfacesCompilerPass;
+use Symplify\ParameterNameGuard\Bundle\ParameterNameGuardBundle;
 
 final class RectorKernel extends Kernel implements ExtraConfigAwareKernelInterface
 {
@@ -26,6 +33,18 @@ final class RectorKernel extends Kernel implements ExtraConfigAwareKernelInterfa
      * @var string[]
      */
     private $configs = [];
+
+    /**
+     * @var RectorServiceArgumentCollector
+     */
+    private $rectorServiceArgumentCollector;
+
+    public function __construct(string $environment, bool $debug)
+    {
+        $this->rectorServiceArgumentCollector = new RectorServiceArgumentCollector();
+
+        parent::__construct($environment, $debug);
+    }
 
     public function getCacheDir(): string
     {
@@ -41,7 +60,7 @@ final class RectorKernel extends Kernel implements ExtraConfigAwareKernelInterfa
 
     public function registerContainerConfiguration(LoaderInterface $loader): void
     {
-        $loader->load(__DIR__ . '/../../config/config.yaml');
+        $loader->load(__DIR__ . '/../../config/config.php');
 
         foreach ($this->configs as $config) {
             $loader->load($config);
@@ -59,22 +78,27 @@ final class RectorKernel extends Kernel implements ExtraConfigAwareKernelInterfa
     /**
      * @return BundleInterface[]
      */
-    public function registerBundles(): iterable
+    public function registerBundles(): array
     {
-        return [];
+        return [new ConsoleColorDiffBundle(), new ParameterNameGuardBundle()];
     }
 
     protected function build(ContainerBuilder $containerBuilder): void
     {
         $containerBuilder->addCompilerPass(new RemoveExcludedRectorsCompilerPass());
 
-        $containerBuilder->addCompilerPass(new AutoReturnFactoryCompilerPass());
         $containerBuilder->addCompilerPass(new AutowireArrayParameterCompilerPass());
 
         // autowire Rectors by default (mainly for 3rd party code)
         $containerBuilder->addCompilerPass(new AutowireInterfacesCompilerPass([RectorInterface::class]));
 
-        $containerBuilder->addCompilerPass(new AutoBindParametersCompilerPass());
+        $containerBuilder->addCompilerPass(new AutoBindParameterCompilerPass());
+        $containerBuilder->addCompilerPass(new MakeRectorsPublicCompilerPass());
+
+        // add all merged arguments of Rector services
+        $containerBuilder->addCompilerPass(
+            new MergeImportedRectorServiceArgumentsCompilerPass($this->rectorServiceArgumentCollector)
+        );
     }
 
     /**
@@ -83,11 +107,12 @@ final class RectorKernel extends Kernel implements ExtraConfigAwareKernelInterfa
      */
     protected function getContainerLoader(ContainerInterface $container): DelegatingLoader
     {
-        $kernelFileLocator = new FileLocator($this);
+        $fileLocator = new FileLocator($this);
 
         $loaderResolver = new LoaderResolver([
-            new GlobFileLoader($kernelFileLocator),
-            new TolerantRectorYamlFileLoader($container, $kernelFileLocator),
+            new GlobFileLoader($fileLocator),
+            new PhpFileLoader($container, $fileLocator),
+            new TolerantRectorYamlFileLoader($container, $fileLocator, $this->rectorServiceArgumentCollector),
         ]);
 
         return new DelegatingLoader($loaderResolver);

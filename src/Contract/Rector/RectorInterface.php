@@ -1,8 +1,10 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Contract\Rector;
+declare(strict_types=1);
 
-use Rector\RectorDefinition\RectorDefinition;
+namespace Rector\Core\Contract\Rector;
+
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 interface RectorInterface
 {

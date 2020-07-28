@@ -1,10 +1,12 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\DependencyInjection\Loader;
+declare(strict_types=1);
+
+namespace Rector\Core\DependencyInjection\Loader;
 
 use Nette\Utils\Strings;
-use Rector\Exception\DependencyInjection\ClassNotFoundException;
-use Symplify\PackageBuilder\FileSystem\SmartFileInfo;
+use Rector\Core\Exception\DependencyInjection\ClassNotFoundException;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ClassExistenceValidator
 {
@@ -27,8 +29,9 @@ final class ClassExistenceValidator
             return;
         }
 
-        foreach (array_keys($configuration[self::SERVICES_KEY]) as $class) {
-            if (empty($class) || ! is_string($class)) {
+        $classes = array_keys($configuration[self::SERVICES_KEY]);
+        foreach ($classes as $class) {
+            if ($class === '' || ! is_string($class)) {
                 continue;
             }
 

@@ -1,54 +1,29 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node\Manipulator;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node\Manipulator;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr\Assign;
-use PhpParser\Node\Expr\PropertyFetch;
-use PhpParser\Node\Expr\StaticPropertyFetch;
 use PhpParser\Node\Name;
-use PhpParser\Node\Param;
-use PhpParser\Node\Stmt;
+use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\Node\Stmt\Expression;
-use PhpParser\Node\Stmt\Nop;
+use PhpParser\Node\Stmt\Interface_;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Trait_;
-use PhpParser\Node\Stmt\TraitUse;
-use PHPStan\Type\Type;
-use Rector\BetterPhpDocParser\PhpDocNode\JMS\SerializerTypeTagValueNode;
-use Rector\Exception\ShouldNotHappenException;
-use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\NodeTypeResolver\PhpDoc\NodeAnalyzer\DocBlockManipulator;
-use Rector\PhpParser\Node\BetterNodeFinder;
-use Rector\PhpParser\Node\Commander\NodeRemovingCommander;
-use Rector\PhpParser\Node\NodeFactory;
-use Rector\PhpParser\Node\Resolver\NameResolver;
-use Rector\PhpParser\NodeTraverser\CallableNodeTraverser;
+use Rector\Core\PhpParser\NodeTraverser\CallableNodeTraverser;
+use Rector\NodeNameResolver\NodeNameResolver;
+use Rector\NodeTypeResolver\NodeTypeResolver;
+use Rector\PostRector\Collector\NodesToRemoveCollector;
 
 final class ClassManipulator
 {
     /**
-     * @var NameResolver
+     * @var NodeNameResolver
      */
-    private $nameResolver;
-
-    /**
-     * @var NodeFactory
-     */
-    private $nodeFactory;
-
-    /**
-     * @var ChildAndParentClassManipulator
-     */
-    private $childAndParentClassManipulator;
-
-    /**
-     * @var BetterNodeFinder
-     */
-    private $betterNodeFinder;
+    private $nodeNameResolver;
 
     /**
      * @var CallableNodeTraverser
@@ -56,123 +31,25 @@ final class ClassManipulator
     private $callableNodeTraverser;
 
     /**
-     * @var NodeRemovingCommander
+     * @var NodeTypeResolver
      */
-    private $nodeRemovingCommander;
+    private $nodeTypeResolver;
 
     /**
-     * @var DocBlockManipulator
+     * @var NodesToRemoveCollector
      */
-    private $docBlockManipulator;
+    private $nodesToRemoveCollector;
 
     public function __construct(
-        NameResolver $nameResolver,
-        NodeFactory $nodeFactory,
-        ChildAndParentClassManipulator $childAndParentClassManipulator,
-        BetterNodeFinder $betterNodeFinder,
         CallableNodeTraverser $callableNodeTraverser,
-        NodeRemovingCommander $nodeRemovingCommander,
-        DocBlockManipulator $docBlockManipulator
+        NodeNameResolver $nodeNameResolver,
+        NodeTypeResolver $nodeTypeResolver,
+        NodesToRemoveCollector $nodesToRemoveCollector
     ) {
-        $this->nodeFactory = $nodeFactory;
-        $this->nameResolver = $nameResolver;
-        $this->childAndParentClassManipulator = $childAndParentClassManipulator;
-        $this->betterNodeFinder = $betterNodeFinder;
+        $this->nodeNameResolver = $nodeNameResolver;
         $this->callableNodeTraverser = $callableNodeTraverser;
-        $this->nodeRemovingCommander = $nodeRemovingCommander;
-        $this->docBlockManipulator = $docBlockManipulator;
-    }
-
-    public function addConstructorDependency(Class_ $classNode, string $name, Type $type): void
-    {
-        // add property
-        // @todo should be factory
-        $this->addPropertyToClass($classNode, $name, $type);
-
-        // pass via constructor
-        $this->addSimplePropertyAssignToClass($classNode, $name, $type);
-    }
-
-    /**
-     * @param ClassMethod|Property|ClassMethod $stmt
-     */
-    public function addAsFirstMethod(Class_ $class, Stmt $stmt): void
-    {
-        if ($this->tryInsertBeforeFirstMethod($class, $stmt)) {
-            return;
-        }
-
-        if ($this->tryInsertAfterLastProperty($class, $stmt)) {
-            return;
-        }
-
-        $class->stmts[] = $stmt;
-    }
-
-    public function addAsFirstTrait(Class_ $class, Stmt $stmt): void
-    {
-        $this->addStatementToClassBeforeTypes($class, $stmt, TraitUse::class, Property::class);
-    }
-
-    /**
-     * @param Stmt[] $nodes
-     * @return Stmt[] $nodes
-     */
-    public function insertBeforeAndFollowWithNewline(array $nodes, Stmt $stmt, int $key): array
-    {
-        $nodes = $this->insertBefore($nodes, $stmt, $key);
-        return $this->insertBefore($nodes, new Nop(), $key);
-    }
-
-    /**
-     * @param Stmt[] $nodes
-     * @return Stmt[] $nodes
-     */
-    public function insertBefore(array $nodes, Stmt $stmt, int $key): array
-    {
-        array_splice($nodes, $key, 0, [$stmt]);
-
-        return $nodes;
-    }
-
-    public function addPropertyToClass(Class_ $classNode, string $name, Type $type): void
-    {
-        if ($this->hasClassProperty($classNode, $name)) {
-            return;
-        }
-
-        $propertyNode = $this->nodeFactory->createPrivatePropertyFromNameAndType($name, $type);
-        $this->addAsFirstMethod($classNode, $propertyNode);
-    }
-
-    public function addSimplePropertyAssignToClass(Class_ $classNode, string $name, Type $type): void
-    {
-        $propertyAssignNode = $this->nodeFactory->createPropertyAssignment($name);
-        $this->addConstructorDependencyWithCustomAssign($classNode, $name, $type, $propertyAssignNode);
-    }
-
-    public function addConstructorDependencyWithCustomAssign(
-        Class_ $classNode,
-        string $name,
-        Type $type,
-        Assign $assign
-    ): void {
-        $constructorMethod = $classNode->getMethod('__construct');
-        /** @var ClassMethod $constructorMethod */
-        if ($constructorMethod !== null) {
-            $this->addParameterAndAssignToMethod($constructorMethod, $name, $type, $assign);
-            return;
-        }
-
-        $constructorMethod = $this->nodeFactory->createPublicMethod('__construct');
-
-        $this->addParameterAndAssignToMethod($constructorMethod, $name, $type, $assign);
-
-        $this->childAndParentClassManipulator->completeParentConstructor($classNode, $constructorMethod);
-
-        $this->addAsFirstMethod($classNode, $constructorMethod);
-
-        $this->childAndParentClassManipulator->completeChildConstructors($classNode, $constructorMethod);
+        $this->nodeTypeResolver = $nodeTypeResolver;
+        $this->nodesToRemoveCollector = $nodesToRemoveCollector;
     }
 
     /**
@@ -184,30 +61,13 @@ final class ClassManipulator
         $usedTraits = [];
         foreach ($classLike->getTraitUses() as $stmt) {
             foreach ($stmt->traits as $trait) {
-                $traitName = $this->nameResolver->getName($trait);
-                if ($traitName !== null) {
-                    $usedTraits[$traitName] = $trait;
-                }
+                /** @var string $traitName */
+                $traitName = $this->nodeNameResolver->getName($trait);
+                $usedTraits[$traitName] = $trait;
             }
         }
 
         return $usedTraits;
-    }
-
-    public function getProperty(Class_ $class, string $name): ?Property
-    {
-        foreach ($class->getProperties() as $property) {
-            if (count($property->props) > 1) {
-                // usually full property is needed to have all the docs values
-                throw new ShouldNotHappenException();
-            }
-
-            if ($this->nameResolver->isName($property, $name)) {
-                return $property;
-            }
-        }
-
-        return null;
     }
 
     public function hasParentMethodOrInterface(string $class, string $method): bool
@@ -233,41 +93,47 @@ final class ClassManipulator
         return false;
     }
 
-    public function hasClassMethod(Class_ $classNode, string $methodName): bool
-    {
-        $methodNames = $this->getClassMethodNames($classNode);
-
-        return in_array($methodName, $methodNames, true);
-    }
-
-    public function hasPropertyFetchAsProperty(Class_ $class, PropertyFetch $propertyFetch): bool
-    {
-        if (! $this->nameResolver->isName($propertyFetch->var, 'this')) {
-            return false;
-        }
-
-        foreach ($class->getProperties() as $property) {
-            if ($this->nameResolver->areNamesEqual($property->props[0], $propertyFetch)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public function removeProperty(Class_ $class, string $propertyName): void
     {
         $this->removeProperties($class, [$propertyName]);
     }
 
-    public function findMethodParamByName(ClassMethod $classMethod, string $name): ?Param
+    /**
+     * @return string[]
+     */
+    public function getPrivatePropertyNames(Class_ $class): array
     {
-        foreach ($classMethod->params as $param) {
-            if (! $this->nameResolver->isName($param, $name)) {
+        $privateProperties = array_filter($class->getProperties(), function (Property $property) {
+            return $property->isPrivate();
+        });
+
+        return $this->nodeNameResolver->getNames($privateProperties);
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getPublicMethodNames(Class_ $class): array
+    {
+        $publicMethods = array_filter($class->getMethods(), function (ClassMethod $classMethod) {
+            if ($classMethod->isAbstract()) {
+                return false;
+            }
+
+            return $classMethod->isPublic();
+        });
+
+        return $this->nodeNameResolver->getNames($publicMethods);
+    }
+
+    public function findPropertyByType(Class_ $class, string $serviceType): ?Property
+    {
+        foreach ($class->getProperties() as $property) {
+            if (! $this->nodeTypeResolver->isObjectType($property, $serviceType)) {
                 continue;
             }
 
-            return $param;
+            return $property;
         }
 
         return null;
@@ -276,248 +142,86 @@ final class ClassManipulator
     /**
      * @return string[]
      */
-    public function getPrivatePropertyNames(Class_ $class): array
+    public function getImplementedInterfaceNames(Class_ $class): array
     {
-        $privatePropertyNames = [];
-        foreach ($class->getProperties() as $property) {
-            if (! $property->isPrivate()) {
+        return $this->nodeNameResolver->getNames($class->implements);
+    }
+
+    public function hasInterface(Class_ $class, string $desiredInterface): bool
+    {
+        return $this->nodeNameResolver->haveName($class->implements, $desiredInterface);
+    }
+
+    public function hasTrait(Class_ $class, string $desiredTrait): bool
+    {
+        foreach ($class->getTraitUses() as $traitUse) {
+            if (! $this->nodeNameResolver->haveName($traitUse->traits, $desiredTrait)) {
                 continue;
             }
 
-            /** @var string $propertyName */
-            $propertyName = $this->nameResolver->getName($property);
-            $privatePropertyNames[] = $propertyName;
+            return true;
         }
 
-        return $privatePropertyNames;
+        return false;
+    }
+
+    public function replaceTrait(Class_ $class, string $oldTrait, string $newTrait): void
+    {
+        foreach ($class->getTraitUses() as $traitUse) {
+            foreach ($traitUse->traits as $key => $traitTrait) {
+                if (! $this->nodeNameResolver->isName($traitTrait, $oldTrait)) {
+                    continue;
+                }
+
+                $traitUse->traits[$key] = new FullyQualified($newTrait);
+                break;
+            }
+        }
     }
 
     /**
+     * @param Class_|Interface_ $classLike
      * @return string[]
      */
-    public function getPublicMethodNames(Class_ $class): array
+    public function getClassLikeNodeParentInterfaceNames(ClassLike $classLike)
     {
-        $publicMethodNames = [];
-        foreach ($class->getMethods() as $method) {
-            if ($method->isAbstract()) {
-                continue;
-            }
-
-            if (! $method->isPublic()) {
-                continue;
-            }
-
-            /** @var string $methodName */
-            $methodName = $this->nameResolver->getName($method);
-
-            $publicMethodNames[] = $methodName;
+        if ($classLike instanceof Class_) {
+            return $this->nodeNameResolver->getNames($classLike->implements);
         }
 
-        return $publicMethodNames;
+        if ($classLike instanceof Interface_) {
+            return $this->nodeNameResolver->getNames($classLike->extends);
+        }
+
+        return [];
     }
 
-    /**
-     * @return string[]
-     */
-    public function getAssignOnlyPrivatePropertyNames(Class_ $node): array
+    public function removeInterface(Class_ $class, string $desiredInterface): void
     {
-        $privatePropertyNames = $this->getPrivatePropertyNames($node);
-
-        $propertyNonAssignNames = [];
-
-        $this->callableNodeTraverser->traverseNodesWithCallable([$node], function (Node $node) use (
-            &$propertyNonAssignNames
-        ): void {
-            if (! $node instanceof PropertyFetch && ! $node instanceof StaticPropertyFetch) {
-                return;
+        foreach ($class->implements as $implement) {
+            if (! $this->nodeNameResolver->isName($implement, $desiredInterface)) {
+                continue;
             }
 
-            if (! $this->isNonAssignPropertyFetch($node)) {
-                return;
-            }
-
-            $propertyNonAssignNames[] = $this->nameResolver->getName($node);
-        });
-
-        // skip serializable properties, because they are probably used in serialization even though assign only
-        $serializablePropertyNames = $this->getSerializablePropertyNames($node);
-
-        return array_diff($privatePropertyNames, $propertyNonAssignNames, $serializablePropertyNames);
+            $this->nodesToRemoveCollector->addNodeToRemove($implement);
+        }
     }
 
     /**
      * @param string[] $propertyNames
      */
-    public function removeProperties(Class_ $class, array $propertyNames): void
+    private function removeProperties(Class_ $class, array $propertyNames): void
     {
         $this->callableNodeTraverser->traverseNodesWithCallable($class, function (Node $node) use ($propertyNames) {
             if (! $node instanceof Property) {
                 return null;
             }
 
-            if (! $this->nameResolver->isNames($node, $propertyNames)) {
+            if (! $this->nodeNameResolver->isNames($node, $propertyNames)) {
                 return null;
             }
 
-            $this->removeNode($node);
+            $this->nodesToRemoveCollector->addNodeToRemove($node);
         });
-    }
-
-    private function tryInsertBeforeFirstMethod(Class_ $classNode, Stmt $stmt): bool
-    {
-        foreach ($classNode->stmts as $key => $classStmt) {
-            if ($classStmt instanceof ClassMethod) {
-                $classNode->stmts = $this->insertBefore($classNode->stmts, $stmt, $key);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function tryInsertAfterLastProperty(Class_ $classNode, Stmt $stmt): bool
-    {
-        $previousElement = null;
-        foreach ($classNode->stmts as $key => $classStmt) {
-            if ($previousElement instanceof Property && ! $classStmt instanceof Property) {
-                $classNode->stmts = $this->insertBefore($classNode->stmts, $stmt, $key);
-
-                return true;
-            }
-
-            $previousElement = $classStmt;
-        }
-
-        return false;
-    }
-
-    /**
-     * @param string[] ...$types
-     */
-    private function addStatementToClassBeforeTypes(Class_ $classNode, Stmt $stmt, string ...$types): void
-    {
-        foreach ($types as $type) {
-            foreach ($classNode->stmts as $key => $classStmt) {
-                if ($classStmt instanceof $type) {
-                    $classNode->stmts = $this->insertBefore($classNode->stmts, $stmt, $key);
-
-                    return;
-                }
-            }
-        }
-
-        $classNode->stmts[] = $stmt;
-    }
-
-    private function hasClassProperty(Class_ $classNode, string $name): bool
-    {
-        foreach ($classNode->getProperties() as $property) {
-            if ($this->nameResolver->isName($property, $name)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function addParameterAndAssignToMethod(
-        ClassMethod $classMethod,
-        string $name,
-        Type $type,
-        Assign $assign
-    ): void {
-        if ($this->hasMethodParameter($classMethod, $name)) {
-            return;
-        }
-
-        $classMethod->params[] = $this->nodeFactory->createParamFromNameAndType($name, $type);
-        $classMethod->stmts[] = new Expression($assign);
-    }
-
-    /**
-     * @return string[]
-     */
-    private function getClassMethodNames(Class_ $classNode): array
-    {
-        $classMethodNames = [];
-
-        $classMethodNodes = $this->betterNodeFinder->findInstanceOf($classNode->stmts, ClassMethod::class);
-        foreach ($classMethodNodes as $classMethodNode) {
-            $classMethodNames[] = $this->nameResolver->getName($classMethodNode);
-        }
-
-        return $classMethodNames;
-    }
-
-    private function hasMethodParameter(ClassMethod $classMethod, string $name): bool
-    {
-        foreach ($classMethod->params as $constructorParameter) {
-            if ($this->nameResolver->isName($constructorParameter->var, $name)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function removeNode(Node $node): void
-    {
-        $this->nodeRemovingCommander->addNode($node);
-    }
-
-    /**
-     * @param PropertyFetch|StaticPropertyFetch $node
-     */
-    private function isNonAssignPropertyFetch(Node $node): bool
-    {
-        if ($node instanceof PropertyFetch) {
-            if (! $this->nameResolver->isName($node->var, 'this')) {
-                return false;
-            }
-
-            // is "$this->property = x;" assign
-            return ! $this->isNodeLeftPartOfAssign($node);
-        }
-
-        if ($node instanceof StaticPropertyFetch) {
-            if (! $this->nameResolver->isName($node->class, 'self')) {
-                return false;
-            }
-
-            // is "self::$property = x;" assign
-            return ! $this->isNodeLeftPartOfAssign($node);
-        }
-
-        return false;
-    }
-
-    private function isNodeLeftPartOfAssign(Node $node): bool
-    {
-        $parentNode = $node->getAttribute(AttributeKey::PARENT_NODE);
-
-        return $parentNode instanceof Assign && $parentNode->var === $node;
-    }
-
-    /**
-     * @return string[]
-     */
-    private function getSerializablePropertyNames(Class_ $node): array
-    {
-        $serializablePropertyNames = [];
-        $this->callableNodeTraverser->traverseNodesWithCallable([$node], function (Node $node) use (
-            &$serializablePropertyNames
-        ): void {
-            if (! $node instanceof Property) {
-                return;
-            }
-
-            if (! $this->docBlockManipulator->hasTag($node, SerializerTypeTagValueNode::class)) {
-                return;
-            }
-
-            $serializablePropertyNames[] = $this->nameResolver->getName($node);
-        });
-
-        return $serializablePropertyNames;
     }
 }

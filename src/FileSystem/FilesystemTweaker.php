@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\FileSystem;
+declare(strict_types=1);
+
+namespace Rector\Core\FileSystem;
 
 use Nette\Utils\Strings;
-use Rector\Exception\FileSystem\DirectoryNotFoundException;
+use Rector\Core\Exception\FileSystem\DirectoryNotFoundException;
 
 final class FilesystemTweaker
 {
@@ -17,9 +19,11 @@ final class FilesystemTweaker
     {
         $absoluteDirectories = [];
         foreach ($directories as $directory) {
-            if (Strings::contains($directory, '*')) { // is fnmatch for directories
+            // is fnmatch for directories
+            if (Strings::contains($directory, '*')) {
                 $absoluteDirectories = array_merge($absoluteDirectories, glob($directory, GLOB_ONLYDIR));
-            } else { // is classic directory
+            } else {
+                // is classic directory
                 $this->ensureDirectoryExists($directory);
                 $absoluteDirectories[] = $directory;
             }

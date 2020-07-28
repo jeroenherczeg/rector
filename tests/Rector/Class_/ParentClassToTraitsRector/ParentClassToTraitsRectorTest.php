@@ -1,32 +1,31 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Class_\ParentClassToTraitsRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Class_\ParentClassToTraitsRector;
 
 use Iterator;
-use Rector\Rector\Class_\ParentClassToTraitsRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Class_\ParentClassToTraitsRector\Source\AnotherParentObject;
-use Rector\Tests\Rector\Class_\ParentClassToTraitsRector\Source\ParentObject;
-use Rector\Tests\Rector\Class_\ParentClassToTraitsRector\Source\SecondTrait;
-use Rector\Tests\Rector\Class_\ParentClassToTraitsRector\Source\SomeTrait;
+use Rector\Core\Rector\Class_\ParentClassToTraitsRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Class_\ParentClassToTraitsRector\Source\AnotherParentObject;
+use Rector\Core\Tests\Rector\Class_\ParentClassToTraitsRector\Source\ParentObject;
+use Rector\Core\Tests\Rector\Class_\ParentClassToTraitsRector\Source\SecondTrait;
+use Rector\Core\Tests\Rector\Class_\ParentClassToTraitsRector\Source\SomeTrait;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ParentClassToTraitsRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture3.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture4.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture5.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

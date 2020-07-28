@@ -1,29 +1,30 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Argument\ArgumentRemoverRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Argument\ArgumentRemoverRector;
 
 use Iterator;
-use Rector\Rector\Argument\ArgumentRemoverRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Argument\ArgumentRemoverRector\Source\Persister;
-use Rector\Tests\Rector\Argument\ArgumentRemoverRector\Source\RemoveInTheMiddle;
+use Rector\Core\Rector\Argument\ArgumentRemoverRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Argument\ArgumentRemoverRector\Source\Persister;
+use Rector\Core\Tests\Rector\Argument\ArgumentRemoverRector\Source\RemoveInTheMiddle;
 use Symfony\Component\Yaml\Yaml;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ArgumentRemoverRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
-        yield [__DIR__ . '/Fixture/remove_in_middle.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

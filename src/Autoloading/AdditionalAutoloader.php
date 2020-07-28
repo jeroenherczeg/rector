@@ -1,12 +1,14 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Autoloading;
+declare(strict_types=1);
+
+namespace Rector\Core\Autoloading;
 
 use Nette\Loaders\RobotLoader;
-use Rector\Configuration\Option;
-use Rector\FileSystem\FileGuard;
+use Rector\Core\Configuration\Option;
+use Rector\Core\FileSystem\FileGuard;
 use Symfony\Component\Console\Input\InputInterface;
-use Symplify\PackageBuilder\FileSystem\FileSystem;
+use Symplify\SmartFileSystem\FileSystemFilter;
 
 /**
  * Should it pass autoload files/directories to PHPStan analyzer?
@@ -29,9 +31,9 @@ final class AdditionalAutoloader
     private $fileGuard;
 
     /**
-     * @var FileSystem
+     * @var FileSystemFilter
      */
-    private $fileSystem;
+    private $fileSystemFilter;
 
     /**
      * @param string[] $autoloadPaths
@@ -39,14 +41,14 @@ final class AdditionalAutoloader
      */
     public function __construct(
         FileGuard $fileGuard,
-        FileSystem $fileSystem,
+        FileSystemFilter $fileSystemFilter,
         array $autoloadPaths,
         array $excludePaths
     ) {
         $this->fileGuard = $fileGuard;
-        $this->fileSystem = $fileSystem;
         $this->autoloadPaths = $autoloadPaths;
         $this->excludePaths = $excludePaths;
+        $this->fileSystemFilter = $fileSystemFilter;
     }
 
     /**
@@ -54,16 +56,15 @@ final class AdditionalAutoloader
      */
     public function autoloadWithInputAndSource(InputInterface $input, array $source): void
     {
-        [$autoloadFiles, $autoloadDirectories] = $this->fileSystem->separateFilesAndDirectories($this->autoloadPaths);
+        $autoloadDirectories = $this->fileSystemFilter->filterDirectories($this->autoloadPaths);
+        $autoloadFiles = $this->fileSystemFilter->filterFiles($this->autoloadPaths);
 
         $this->autoloadFileFromInput($input);
         $this->autoloadDirectories($autoloadDirectories);
         $this->autoloadFiles($autoloadFiles);
 
         // the scanned file needs to be autoloaded
-        [$files, $directories] = $this->fileSystem->separateFilesAndDirectories($source);
-        $this->autoloadFiles($files);
-
+        $directories = $this->fileSystemFilter->filterDirectories($source);
         foreach ($directories as $directory) {
             // load project autoload
             if (file_exists($directory . '/vendor/autoload.php')) {
@@ -74,6 +75,10 @@ final class AdditionalAutoloader
 
     private function autoloadFileFromInput(InputInterface $input): void
     {
+        if (! $input->hasOption(Option::OPTION_AUTOLOAD_FILE)) {
+            return;
+        }
+
         /** @var string|null $autoloadFile */
         $autoloadFile = $input->getOption(Option::OPTION_AUTOLOAD_FILE);
         if ($autoloadFile === null) {

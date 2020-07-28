@@ -1,19 +1,21 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Interface_;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Interface_;
 
 use PhpParser\Node;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Class_;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
  * Covers cases like
  * - https://github.com/FriendsOfPHP/PHP-CS-Fixer/commit/a1cdb4d2dd8f45d731244eed406e1d537218cc66
  * - https://github.com/FriendsOfPHP/PHP-CS-Fixer/commit/614d2e6f7af5a5b0be5363ff536aed2b7ee5a31d
- * @see \Rector\Tests\Rector\Interface_\MergeInterfacesRector\MergeInterfacesRectorTest
+ * @see \Rector\Core\Tests\Rector\Interface_\MergeInterfacesRector\MergeInterfacesRectorTest
  */
 final class MergeInterfacesRector extends AbstractRector
 {
@@ -71,7 +73,8 @@ PHP
         }
 
         foreach ($node->implements as $key => $implement) {
-            if (! $this->isNames($implement, array_keys($this->oldToNewInterfaces))) {
+            $oldInterfaces = array_keys($this->oldToNewInterfaces);
+            if (! $this->isNames($implement, $oldInterfaces)) {
                 continue;
             }
 
@@ -84,13 +87,13 @@ PHP
         return $node;
     }
 
-    private function makeImplementsUnique(Class_ $classNode): void
+    private function makeImplementsUnique(Class_ $class): void
     {
         $alreadyAddedNames = [];
-        foreach ($classNode->implements as $key => $name) {
+        foreach ($class->implements as $key => $name) {
             $fqnName = $this->getName($name);
             if (in_array($fqnName, $alreadyAddedNames, true)) {
-                unset($classNode->implements[$key]);
+                $this->removeImplements($class, $key);
                 continue;
             }
 

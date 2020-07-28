@@ -1,7 +1,12 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\DependencyInjection\CompilerPass;
+declare(strict_types=1);
 
+namespace Rector\Core\DependencyInjection\CompilerPass;
+
+use Rector\Core\Configuration\Option;
+use Rector\Core\Contract\Rector\RectorInterface;
+use Rector\Core\Exception\ShouldNotHappenException;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
@@ -21,6 +26,8 @@ final class RemoveExcludedRectorsCompilerPass implements CompilerPassInterface
 
         $excludedRectors = (array) $parameterBag->get(self::EXCLUDE_RECTORS_KEY);
 
+        $this->ensureClassesExistsAndAreRectors($excludedRectors);
+
         foreach ($containerBuilder->getDefinitions() as $id => $definition) {
             if ($definition->getClass() === null) {
                 continue;
@@ -32,5 +39,43 @@ final class RemoveExcludedRectorsCompilerPass implements CompilerPassInterface
 
             $containerBuilder->removeDefinition($id);
         }
+    }
+
+    /**
+     * @param string[] $excludedRectors
+     */
+    private function ensureClassesExistsAndAreRectors(array $excludedRectors): void
+    {
+        foreach ($excludedRectors as $excludedRector) {
+            $this->ensureClassExists($excludedRector);
+            $this->ensureIsRectorClass($excludedRector);
+        }
+    }
+
+    private function ensureClassExists(string $excludedRector): void
+    {
+        if (class_exists($excludedRector)) {
+            return;
+        }
+
+        throw new ShouldNotHappenException(sprintf(
+            'Class "%s" defined in "parameters > %s" was not found ',
+            $excludedRector,
+            Option::EXCLUDE_RECTORS
+        ));
+    }
+
+    private function ensureIsRectorClass(string $excludedRector): void
+    {
+        if (is_a($excludedRector, RectorInterface::class, true)) {
+            return;
+        }
+
+        throw new ShouldNotHappenException(sprintf(
+            'Class "%s" defined in "parameters > %s" is not a Rector rule = does not implement "%s" ',
+            $excludedRector,
+            Option::EXCLUDE_RECTORS,
+            RectorInterface::class
+        ));
     }
 }

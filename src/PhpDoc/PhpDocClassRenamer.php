@@ -1,39 +1,18 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpDoc;
+declare(strict_types=1);
 
-use PhpParser\Comment\Doc;
+namespace Rector\Core\PhpDoc;
+
 use PhpParser\Node;
 use Rector\BetterPhpDocParser\Contract\Doctrine\DoctrineRelationTagValueNodeInterface;
 use Rector\BetterPhpDocParser\PhpDocInfo\PhpDocInfo;
-use Rector\BetterPhpDocParser\PhpDocInfo\PhpDocInfoFactory;
 use Rector\BetterPhpDocParser\PhpDocNode\JMS\SerializerTypeTagValueNode;
 use Rector\BetterPhpDocParser\PhpDocNode\Symfony\Validator\Constraints\AssertChoiceTagValueNode;
-use Rector\BetterPhpDocParser\Printer\PhpDocInfoPrinter;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 
 final class PhpDocClassRenamer
 {
-    /**
-     * @var PhpDocInfoFactory
-     */
-    private $phpDocInfoFactory;
-
-    /**
-     * @var PhpDocInfoPrinter
-     */
-    private $phpDocInfoPrinter;
-
-    /**
-     * @var bool
-     */
-    private $shouldUpdate = false;
-
-    public function __construct(PhpDocInfoFactory $phpDocInfoFactory, PhpDocInfoPrinter $phpDocInfoPrinter)
-    {
-        $this->phpDocInfoFactory = $phpDocInfoFactory;
-        $this->phpDocInfoPrinter = $phpDocInfoPrinter;
-    }
-
     /**
      * Covers annotations like @ORM, @Serializer, @Assert etc
      * See https://github.com/rectorphp/rector/issues/1872
@@ -42,43 +21,30 @@ final class PhpDocClassRenamer
      */
     public function changeTypeInAnnotationTypes(Node $node, array $oldToNewClasses): void
     {
-        $docComment = $node->getDocComment();
-        if ($docComment === null) {
-            return;
-        }
+        /** @var PhpDocInfo $phpDocInfo */
+        $phpDocInfo = $node->getAttribute(AttributeKey::PHP_DOC_INFO);
 
-        $this->shouldUpdate = false;
-
-        $phpDocInfo = $this->phpDocInfoFactory->createFromNode($node);
-        $this->procesAssertChoiceTagValueNode($oldToNewClasses, $phpDocInfo);
-        $this->procesDoctrineRelationTagValueNode($oldToNewClasses, $phpDocInfo);
+        $this->processAssertChoiceTagValueNode($oldToNewClasses, $phpDocInfo);
+        $this->processDoctrineRelationTagValueNode($oldToNewClasses, $phpDocInfo);
         $this->processSerializerTypeTagValueNode($oldToNewClasses, $phpDocInfo);
-
-        if ($this->shouldUpdate === false) {
-            return;
-        }
-
-        $textDocComment = $this->phpDocInfoPrinter->printFormatPreserving($phpDocInfo);
-        $node->setDocComment(new Doc($textDocComment));
     }
 
     /**
      * @param string[] $oldToNewClasses
      */
-    private function procesAssertChoiceTagValueNode(array $oldToNewClasses, PhpDocInfo $phpDocInfo): void
+    private function processAssertChoiceTagValueNode(array $oldToNewClasses, PhpDocInfo $phpDocInfo): void
     {
-        $choiceTagValueNode = $phpDocInfo->getByType(AssertChoiceTagValueNode::class);
-        if (! $choiceTagValueNode instanceof AssertChoiceTagValueNode) {
+        $assertChoiceTagValueNode = $phpDocInfo->getByType(AssertChoiceTagValueNode::class);
+        if (! $assertChoiceTagValueNode instanceof AssertChoiceTagValueNode) {
             return;
         }
 
         foreach ($oldToNewClasses as $oldClass => $newClass) {
-            if (! $choiceTagValueNode->isCallbackClass($oldClass)) {
+            if (! $assertChoiceTagValueNode->isCallbackClass($oldClass)) {
                 continue;
             }
 
-            $choiceTagValueNode->changeCallbackClass($newClass);
-            $this->shouldUpdate = true;
+            $assertChoiceTagValueNode->changeCallbackClass($newClass);
             break;
         }
     }
@@ -86,7 +52,7 @@ final class PhpDocClassRenamer
     /**
      * @param string[] $oldToNewClasses
      */
-    private function procesDoctrineRelationTagValueNode(array $oldToNewClasses, PhpDocInfo $phpDocInfo): void
+    private function processDoctrineRelationTagValueNode(array $oldToNewClasses, PhpDocInfo $phpDocInfo): void
     {
         $relationTagValueNode = $phpDocInfo->getByType(DoctrineRelationTagValueNodeInterface::class);
         if (! $relationTagValueNode instanceof DoctrineRelationTagValueNodeInterface) {
@@ -94,12 +60,11 @@ final class PhpDocClassRenamer
         }
 
         foreach ($oldToNewClasses as $oldClass => $newClass) {
-            if ($relationTagValueNode->getFqnTargetEntity() !== $oldClass) {
+            if ($relationTagValueNode->getFullyQualifiedTargetEntity() !== $oldClass) {
                 continue;
             }
 
             $relationTagValueNode->changeTargetEntity($newClass);
-            $this->shouldUpdate = true;
             break;
         }
     }
@@ -115,9 +80,7 @@ final class PhpDocClassRenamer
         }
 
         foreach ($oldToNewClasses as $oldClass => $newClass) {
-            if ($serializerTypeTagValueNode->replaceName($oldClass, $newClass)) {
-                $this->shouldUpdate = true;
-            }
+            $serializerTypeTagValueNode->replaceName($oldClass, $newClass);
         }
     }
 }

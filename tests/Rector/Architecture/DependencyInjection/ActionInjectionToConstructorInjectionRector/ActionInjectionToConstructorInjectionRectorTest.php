@@ -1,37 +1,31 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Architecture\DependencyInjection\ActionInjectionToConstructorInjectionRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Architecture\DependencyInjection\ActionInjectionToConstructorInjectionRector;
 
 use Iterator;
-use Rector\Configuration\Option;
-use Rector\Rector\Architecture\DependencyInjection\ActionInjectionToConstructorInjectionRector;
-use Rector\Rector\Architecture\DependencyInjection\ReplaceVariableByPropertyFetchRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Architecture\DependencyInjection\ActionInjectionToConstructorInjectionRector\Source\SomeKernelClass;
-use Symplify\PackageBuilder\Parameter\ParameterProvider;
+use Rector\Core\Configuration\Option;
+use Rector\Core\Rector\Architecture\DependencyInjection\ActionInjectionToConstructorInjectionRector;
+use Rector\Core\Rector\Architecture\DependencyInjection\ReplaceVariableByPropertyFetchRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ActionInjectionToConstructorInjectionRectorTest extends AbstractRectorTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $parameterProvider = self::$container->get(ParameterProvider::class);
-        $parameterProvider->changeParameter(Option::KERNEL_CLASS_PARAMETER, SomeKernelClass::class);
-    }
-
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->setParameter(Option::SYMFONY_CONTAINER_XML_PATH_PARAMETER, __DIR__ . '/xml/services.xml');
+
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

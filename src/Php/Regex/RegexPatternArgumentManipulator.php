@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Php\Regex;
+declare(strict_types=1);
+
+namespace Rector\Core\Php\Regex;
 
 use Nette\Utils\Strings;
 use PhpParser\Node;
@@ -11,19 +13,19 @@ use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Scalar\String_;
-use Rector\NodeContainer\ParsedNodesByType;
+use Rector\Core\PhpParser\Node\BetterNodeFinder;
+use Rector\Core\PhpParser\Printer\BetterStandardPrinter;
+use Rector\NodeCollector\NodeCollector\ParsedNodeCollector;
+use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\NodeTypeResolver\NodeTypeResolver;
-use Rector\PhpParser\Node\BetterNodeFinder;
-use Rector\PhpParser\Node\Resolver\NameResolver;
-use Rector\PhpParser\Printer\BetterStandardPrinter;
 
 final class RegexPatternArgumentManipulator
 {
     /**
      * @var int[]
      */
-    private $functionsWithPatternsToArgumentPosition = [
+    private const FUNCTIONS_WITH_PATTERNS_TO_ARGUMENT_POSITION = [
         'preg_match' => 0,
         'preg_replace_callback_array' => 0,
         'preg_replace_callback' => 0,
@@ -36,7 +38,7 @@ final class RegexPatternArgumentManipulator
     /**
      * @var int[][]
      */
-    private $staticMethodsWithPatternsToArgumentPosition = [
+    private const STATIC_METHODS_WITH_PATTERNS_TO_ARGUMENT_POSITION = [
         Strings::class => [
             'match' => 1,
             'matchAll' => 1,
@@ -51,14 +53,9 @@ final class RegexPatternArgumentManipulator
     private $nodeTypeResolver;
 
     /**
-     * @var NameResolver
+     * @var NodeNameResolver
      */
-    private $nameResolver;
-
-    /**
-     * @var ParsedNodesByType
-     */
-    private $parsedNodesByType;
+    private $nodeNameResolver;
 
     /**
      * @var BetterNodeFinder
@@ -70,16 +67,21 @@ final class RegexPatternArgumentManipulator
      */
     private $betterStandardPrinter;
 
+    /**
+     * @var ParsedNodeCollector
+     */
+    private $parsedNodeCollector;
+
     public function __construct(
-        NodeTypeResolver $nodeTypeResolver,
-        NameResolver $nameResolver,
-        ParsedNodesByType $parsedNodesByType,
         BetterNodeFinder $betterNodeFinder,
-        BetterStandardPrinter $betterStandardPrinter
+        BetterStandardPrinter $betterStandardPrinter,
+        NodeNameResolver $nodeNameResolver,
+        NodeTypeResolver $nodeTypeResolver,
+        ParsedNodeCollector $parsedNodeCollector
     ) {
         $this->nodeTypeResolver = $nodeTypeResolver;
-        $this->nameResolver = $nameResolver;
-        $this->parsedNodesByType = $parsedNodesByType;
+        $this->nodeNameResolver = $nodeNameResolver;
+        $this->parsedNodeCollector = $parsedNodeCollector;
         $this->betterNodeFinder = $betterNodeFinder;
         $this->betterStandardPrinter = $betterStandardPrinter;
     }
@@ -105,8 +107,8 @@ final class RegexPatternArgumentManipulator
      */
     private function processFuncCall(FuncCall $funcCall): array
     {
-        foreach ($this->functionsWithPatternsToArgumentPosition as $functionName => $argumentPosition) {
-            if (! $this->nameResolver->isName($funcCall, $functionName)) {
+        foreach (self::FUNCTIONS_WITH_PATTERNS_TO_ARGUMENT_POSITION as $functionName => $argumentPosition) {
+            if (! $this->nodeNameResolver->isName($funcCall, $functionName)) {
                 continue;
             }
 
@@ -125,13 +127,13 @@ final class RegexPatternArgumentManipulator
      */
     private function processStaticCall(StaticCall $staticCall): array
     {
-        foreach ($this->staticMethodsWithPatternsToArgumentPosition as $type => $methodNamesToArgumentPosition) {
+        foreach (self::STATIC_METHODS_WITH_PATTERNS_TO_ARGUMENT_POSITION as $type => $methodNamesToArgumentPosition) {
             if (! $this->nodeTypeResolver->isObjectType($staticCall->class, $type)) {
                 continue;
             }
 
             foreach ($methodNamesToArgumentPosition as $methodName => $argumentPosition) {
-                if (! $this->nameResolver->isName($staticCall, $methodName)) {
+                if (! $this->nodeNameResolver->isName($staticCall->name, $methodName)) {
                     continue;
                 }
 
@@ -179,12 +181,12 @@ final class RegexPatternArgumentManipulator
      */
     private function findAssignerForVariable(Variable $variable): array
     {
-        $methodNode = $variable->getAttribute(AttributeKey::METHOD_NODE);
-        if ($methodNode === null) {
+        $classMethod = $variable->getAttribute(AttributeKey::METHOD_NODE);
+        if ($classMethod === null) {
             return [];
         }
 
-        return $this->betterNodeFinder->find([$methodNode], function (Node $node) use ($variable): ?Assign {
+        return $this->betterNodeFinder->find([$classMethod], function (Node $node) use ($variable): ?Assign {
             if (! $node instanceof Assign) {
                 return null;
             }
@@ -202,7 +204,7 @@ final class RegexPatternArgumentManipulator
      */
     private function resolveClassConstFetchValue(ClassConstFetch $classConstFetch): array
     {
-        $classConstNode = $this->parsedNodesByType->findClassConstantByClassConstFetch($classConstFetch);
+        $classConstNode = $this->parsedNodeCollector->findClassConstantByClassConstFetch($classConstFetch);
         if ($classConstNode === null) {
             return [];
         }

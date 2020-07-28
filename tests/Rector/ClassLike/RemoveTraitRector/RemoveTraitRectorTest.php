@@ -1,25 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\ClassLike\RemoveTraitRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\ClassLike\RemoveTraitRector;
 
 use Iterator;
-use Rector\Rector\ClassLike\RemoveTraitRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\ClassLike\RemoveTraitRector\Source\TraitToBeRemoved;
+use Rector\Core\Rector\ClassLike\RemoveTraitRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\ClassLike\RemoveTraitRector\Source\TraitToBeRemoved;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class RemoveTraitRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

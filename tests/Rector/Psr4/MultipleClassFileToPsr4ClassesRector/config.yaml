@@ -1,2 +1,0 @@
-services:
-    Rector\Rector\Psr4\MultipleClassFileToPsr4ClassesRector: ~

@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Context;
+declare(strict_types=1);
+
+namespace Rector\Core\Context;
 
 use PhpParser\Node;
 use PhpParser\Node\FunctionLike;
@@ -11,7 +13,7 @@ use PhpParser\Node\Stmt\Foreach_;
 use PhpParser\Node\Stmt\If_;
 use PhpParser\Node\Stmt\Switch_;
 use PhpParser\Node\Stmt\While_;
-use Rector\PhpParser\Node\BetterNodeFinder;
+use Rector\Core\PhpParser\Node\BetterNodeFinder;
 
 final class ContextAnalyzer
 {
@@ -38,11 +40,9 @@ final class ContextAnalyzer
 
     public function isInLoop(Node $node): bool
     {
-        $firstParent = $this->betterNodeFinder->findFirstParentInstanceOf(
-            $node,
-            array_merge(self::LOOP_NODES, self::BREAK_NODES)
-        );
+        $stopNodes = array_merge(self::LOOP_NODES, self::BREAK_NODES);
 
+        $firstParent = $this->betterNodeFinder->findFirstParentInstanceOf($node, $stopNodes);
         if ($firstParent === null) {
             return false;
         }
@@ -52,10 +52,9 @@ final class ContextAnalyzer
 
     public function isInIf(Node $node): bool
     {
-        $previousNode = $this->betterNodeFinder->findFirstParentInstanceOf(
-            $node,
-            array_merge([If_::class], self::BREAK_NODES)
-        );
+        $breakNodes = array_merge([If_::class], self::BREAK_NODES);
+
+        $previousNode = $this->betterNodeFinder->findFirstParentInstanceOf($node, $breakNodes);
 
         if ($previousNode === null) {
             return false;

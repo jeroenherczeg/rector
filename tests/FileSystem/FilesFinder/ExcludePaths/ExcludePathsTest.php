@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\FileSystem\FilesFinder\ExcludePaths;
+declare(strict_types=1);
 
-use Rector\FileSystem\FilesFinder;
-use Rector\HttpKernel\RectorKernel;
+namespace Rector\Core\Tests\FileSystem\FilesFinder\ExcludePaths;
+
+use Rector\Core\FileSystem\FilesFinder;
+use Rector\Core\HttpKernel\RectorKernel;
 use Symplify\PackageBuilder\Tests\AbstractKernelTestCase;
 
 final class ExcludePathsTest extends AbstractKernelTestCase

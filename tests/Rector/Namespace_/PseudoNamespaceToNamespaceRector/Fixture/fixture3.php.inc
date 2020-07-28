@@ -1,16 +1,23 @@
 <?php
 
-class PHPUnit_TestCase
+class PHPUnit_Abc
 {
+    public function run()
+    {
+        return 1;
+    }
 }
 
 ?>
 -----
 <?php
 
-
 namespace PHPUnit;
 
-class TestCase
+class Abc
 {
+    public function run()
+    {
+        return 1;
+    }
 }

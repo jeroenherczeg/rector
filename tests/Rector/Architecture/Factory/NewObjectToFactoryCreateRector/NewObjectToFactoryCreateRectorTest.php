@@ -1,27 +1,29 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector;
 
 use Iterator;
-use Rector\Rector\Architecture\Factory\NewObjectToFactoryCreateRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector\Source\MyClass;
-use Rector\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector\Source\MyClassFactory;
+use Rector\Core\Rector\Architecture\Factory\NewObjectToFactoryCreateRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector\Source\MyClass;
+use Rector\Core\Tests\Rector\Architecture\Factory\NewObjectToFactoryCreateRector\Source\MyClassFactory;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class NewObjectToFactoryCreateRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**

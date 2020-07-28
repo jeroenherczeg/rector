@@ -1,16 +1,18 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Visibility;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Visibility;
 
 use PhpParser\Node;
 use PhpParser\Node\Stmt\ClassMethod;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\Visibility\ChangeMethodVisibilityRector\ChangeMethodVisibilityRectorTest
+ * @see \Rector\Core\Tests\Rector\Visibility\ChangeMethodVisibilityRector\ChangeMethodVisibilityRectorTest
  */
 final class ChangeMethodVisibilityRector extends AbstractRector
 {
@@ -65,8 +67,10 @@ class MyClass extends FrameworkClass
 PHP
                 ,
                 [
-                    'FrameworkClass' => [
-                        'someMethod' => 'protected',
+                    '$methodToVisibilityByClass' => [
+                        'FrameworkClass' => [
+                            'someMethod' => 'protected',
+                        ],
                     ],
                 ]
             )]

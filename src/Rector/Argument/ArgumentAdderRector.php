@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Argument;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Argument;
 
 use PhpParser\BuilderHelpers;
 use PhpParser\Node;
@@ -9,20 +11,38 @@ use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
 use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Param;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\Argument\ArgumentAdderRector\ArgumentAdderRectorTest
+ * @see \Rector\Core\Tests\Rector\Argument\ArgumentAdderRector\ArgumentAdderRectorTest
  */
 final class ArgumentAdderRector extends AbstractRector
 {
+    /**
+     * @var string[][][][][]
+     */
+    private const CONFIGURATION = [
+        '$positionWithDefaultValueByMethodNamesByClassTypes' => [
+            'SomeExampleClass' => [
+                'someMethod' => [
+                    0 => [
+                        'name' => 'someArgument',
+                        'default_value' => 'true',
+                        'type' => 'SomeType',
+                    ],
+                ],
+            ],
+        ],
+    ];
+
     /**
      * @var mixed[]
      */
@@ -38,18 +58,6 @@ final class ArgumentAdderRector extends AbstractRector
 
     public function getDefinition(): RectorDefinition
     {
-        $configuration = [
-            'SomeExampleClass' => [
-                'someMethod' => [
-                    0 => [
-                        'name' => 'someArgument',
-                        'default_value' => 'true',
-                        'type' => 'SomeType',
-                    ],
-                ],
-            ],
-        ];
-
         return new RectorDefinition(
             'This Rector adds new default arguments in calls of defined methods and class types.',
             [
@@ -64,7 +72,7 @@ $someObject = new SomeExampleClass;
 $someObject->someMethod(true);
 PHP
                     ,
-                    $configuration
+                    self::CONFIGURATION
                 ),
                 new ConfiguredCodeSample(
                     <<<'PHP'
@@ -85,7 +93,7 @@ class MyCustomClass extends SomeExampleClass
 }
 PHP
                     ,
-                    $configuration
+                    self::CONFIGURATION
                 ),
             ]
         );
@@ -110,7 +118,7 @@ PHP
             }
 
             foreach ($positionWithDefaultValueByMethodNames as $method => $positionWithDefaultValues) {
-                if (! $this->isName($node, $method)) {
+                if (! $this->isName($node->name, $method)) {
                     continue;
                 }
 
@@ -119,6 +127,31 @@ PHP
         }
 
         return $node;
+    }
+
+    /**
+     * @param MethodCall|StaticCall|ClassMethod $node
+     */
+    private function isObjectTypeMatch(Node $node, string $type): bool
+    {
+        if ($node instanceof MethodCall) {
+            return $this->isObjectType($node->var, $type);
+        }
+
+        if ($node instanceof StaticCall) {
+            return $this->isObjectType($node->class, $type);
+        }
+
+        // ClassMethod
+        /** @var Class_|null $classLike */
+        $classLike = $node->getAttribute(AttributeKey::CLASS_NODE);
+
+        // anonymous class
+        if ($classLike === null) {
+            return false;
+        }
+
+        return $this->isObjectType($classLike, $type);
     }
 
     /**
@@ -132,24 +165,39 @@ PHP
             $defaultValue = $parameterConfiguration['default_value'] ?? null;
             $type = $parameterConfiguration['type'] ?? null;
 
-            if ($this->shouldSkipParameter($node, $position, $name)) {
-                continue;
-            }
-
-            // is correct scope?
-            if (! $this->isInCorrectScope($node, $parameterConfiguration)) {
+            if ($this->shouldSkipParameter($node, $position, $name, $parameterConfiguration)) {
                 continue;
             }
 
             if ($node instanceof ClassMethod) {
                 $this->addClassMethodParam($node, $name, $defaultValue, $type, $position);
-            } elseif ($node instanceof StaticCall && $this->isName($node->class, 'parent')) {
-                $node->args[$position] = new Arg(new Variable($name));
+            } elseif ($node instanceof StaticCall) {
+                $this->processStaticCall($node, $position, $name);
             } else {
                 $arg = new Arg(BuilderHelpers::normalizeValue($defaultValue));
                 $node->args[$position] = $arg;
             }
         }
+    }
+
+    /**
+     * @param ClassMethod|MethodCall|StaticCall $node
+     * @param mixed[] $parameterConfiguration
+     */
+    private function shouldSkipParameter(Node $node, int $position, string $name, array $parameterConfiguration): bool
+    {
+        if ($node instanceof ClassMethod) {
+            // already added?
+            return isset($node->params[$position]) && $this->isName($node->params[$position], $name);
+        }
+
+        // already added?
+        if (isset($node->args[$position]) && $this->isName($node->args[$position], $name)) {
+            return true;
+        }
+
+        // is correct scope?
+        return ! $this->isInCorrectScope($node, $parameterConfiguration);
     }
 
     /**
@@ -170,18 +218,17 @@ PHP
         $classMethod->params[$position] = $param;
     }
 
-    /**
-     * @param ClassMethod|MethodCall|StaticCall $node
-     */
-    private function shouldSkipParameter(Node $node, int $position, string $name): bool
+    private function processStaticCall(StaticCall $staticCall, int $position, string $name): void
     {
-        if ($node instanceof ClassMethod) {
-            // already added?
-            return isset($node->params[$position]) && $this->isName($node->params[$position], $name);
+        if (! $staticCall->class instanceof Name) {
+            return;
         }
 
-        // already added?
-        return isset($node->args[$position]) && $this->isName($node->args[$position], $name);
+        if (! $this->isName($staticCall->class, 'parent')) {
+            return;
+        }
+
+        $staticCall->args[$position] = new Arg(new Variable($name));
     }
 
     /**
@@ -202,6 +249,10 @@ PHP
         }
 
         if ($node instanceof StaticCall) {
+            if (! $node->class instanceof Name) {
+                return false;
+            }
+
             if ($this->isName($node->class, 'parent')) {
                 return in_array('parent_call', $scope, true);
             }
@@ -209,33 +260,7 @@ PHP
             return in_array('method_call', $scope, true);
         }
 
-        if ($node instanceof MethodCall) {
-            return in_array('method_call', $scope, true);
-        }
-
-        return false;
-    }
-
-    /**
-     * @param MethodCall|StaticCall|ClassMethod $node
-     */
-    private function isObjectTypeMatch(Node $node, string $type): bool
-    {
-        if ($node instanceof MethodCall) {
-            return $this->isObjectType($node->var, $type);
-        }
-
-        if ($node instanceof StaticCall) {
-            return $this->isObjectType($node->class, $type);
-        }
-
-        if ($node instanceof ClassMethod) {
-            /** @var Class_ $class */
-            $class = $node->getAttribute(AttributeKey::CLASS_NODE);
-
-            return $this->isObjectType($class, $type);
-        }
-
-        return false;
+        // MethodCall
+        return in_array('method_call', $scope, true);
     }
 }

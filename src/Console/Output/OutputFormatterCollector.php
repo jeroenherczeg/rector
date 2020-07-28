@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Console\Output;
+declare(strict_types=1);
 
-use Rector\Contract\Console\Output\OutputFormatterInterface;
-use Rector\Exception\Console\Output\MissingOutputFormatterException;
+namespace Rector\Core\Console\Output;
+
+use Rector\ChangesReporting\Contract\Output\OutputFormatterInterface;
+use Rector\Core\Exception\Console\Output\MissingOutputFormatterException;
 
 final class OutputFormatterCollector
 {

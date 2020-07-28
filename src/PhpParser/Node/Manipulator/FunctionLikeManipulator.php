@@ -1,20 +1,22 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node\Manipulator;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node\Manipulator;
 
 use PhpParser\Node;
 use PhpParser\Node\FunctionLike;
 use PhpParser\Node\Stmt\Function_;
 use PhpParser\Node\Stmt\Return_;
-use Rector\PhpParser\Node\Resolver\NameResolver;
-use Rector\PhpParser\NodeTraverser\CallableNodeTraverser;
+use Rector\Core\PhpParser\NodeTraverser\CallableNodeTraverser;
+use Rector\NodeNameResolver\NodeNameResolver;
 
 final class FunctionLikeManipulator
 {
     /**
-     * @var NameResolver
+     * @var NodeNameResolver
      */
-    private $nameResolver;
+    private $nodeNameResolver;
 
     /**
      * @var CallableNodeTraverser
@@ -27,11 +29,11 @@ final class FunctionLikeManipulator
     private $propertyFetchManipulator;
 
     public function __construct(
-        NameResolver $nameResolver,
         CallableNodeTraverser $callableNodeTraverser,
+        NodeNameResolver $nodeNameResolver,
         PropertyFetchManipulator $propertyFetchManipulator
     ) {
-        $this->nameResolver = $nameResolver;
+        $this->nodeNameResolver = $nodeNameResolver;
         $this->callableNodeTraverser = $callableNodeTraverser;
         $this->propertyFetchManipulator = $propertyFetchManipulator;
     }
@@ -54,11 +56,11 @@ final class FunctionLikeManipulator
                 return null;
             }
 
-            if (! $this->propertyFetchManipulator->isLocalProperty($node->expr)) {
+            if (! $this->propertyFetchManipulator->isLocalPropertyFetch($node->expr)) {
                 return null;
             }
 
-            $propertyName = $this->nameResolver->getName($node->expr);
+            $propertyName = $this->nodeNameResolver->getName($node->expr);
             if ($propertyName === null) {
                 return null;
             }

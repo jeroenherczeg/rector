@@ -1,17 +1,24 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node;
 
 use PhpParser\Node;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\NodeFinder;
+use Rector\Core\PhpParser\Printer\BetterStandardPrinter;
+use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 
 /**
- * @see \Rector\Tests\PhpParser\Node\BetterNodeFinder\BetterNodeFinderTest
+ * @see \Rector\Core\Tests\PhpParser\Node\BetterNodeFinder\BetterNodeFinderTest
  */
 final class BetterNodeFinder
 {
@@ -20,9 +27,24 @@ final class BetterNodeFinder
      */
     private $nodeFinder;
 
-    public function __construct(NodeFinder $nodeFinder)
-    {
+    /**
+     * @var NodeNameResolver
+     */
+    private $nodeNameResolver;
+
+    /**
+     * @var BetterStandardPrinter
+     */
+    private $betterStandardPrinter;
+
+    public function __construct(
+        BetterStandardPrinter $betterStandardPrinter,
+        NodeFinder $nodeFinder,
+        NodeNameResolver $nodeNameResolver
+    ) {
         $this->nodeFinder = $nodeFinder;
+        $this->nodeNameResolver = $nodeNameResolver;
+        $this->betterStandardPrinter = $betterStandardPrinter;
     }
 
     /**
@@ -69,7 +91,6 @@ final class BetterNodeFinder
     }
 
     /**
-     * @param Node $node
      * @param string[] $types
      */
     public function findFirstAncestorInstancesOf(Node $node, array $types): ?Node
@@ -108,6 +129,47 @@ final class BetterNodeFinder
     /**
      * @param Node|Node[] $nodes
      */
+    public function hasInstanceOfName($nodes, string $type, string $name): bool
+    {
+        return (bool) $this->findInstanceOfName($nodes, $type, $name);
+    }
+
+    /**
+     * @param Node|Node[] $nodes
+     */
+    public function hasVariableOfName($nodes, string $name): bool
+    {
+        return (bool) $this->findVariableOfName($nodes, $name);
+    }
+
+    /**
+     * @param Node|Node[] $nodes
+     */
+    public function findVariableOfName($nodes, string $name): ?Node
+    {
+        return $this->findInstanceOfName($nodes, Variable::class, $name);
+    }
+
+    /**
+     * @param Node|Node[] $nodes
+     * @param string[] $types
+     */
+    public function hasInstancesOf($nodes, array $types): bool
+    {
+        foreach ($types as $type) {
+            if ($this->nodeFinder->findFirstInstanceOf($nodes, $type) === null) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param Node|Node[] $nodes
+     */
     public function findLastInstanceOf($nodes, string $type): ?Node
     {
         $foundInstances = $this->nodeFinder->findInstanceOf($nodes, $type);
@@ -139,13 +201,23 @@ final class BetterNodeFinder
             if (! $node instanceof ClassLike) {
                 return false;
             }
-
             // skip anonymous classes
-            if ($node instanceof Class_ && $node->isAnonymous()) {
+            return ! ($node instanceof Class_ && $node->isAnonymous());
+        });
+    }
+
+    /**
+     * @param Node[] $nodes
+     */
+    public function findFirstNonAnonymousClass(array $nodes): ?Class_
+    {
+        return $this->findFirst($nodes, function (Node $node): bool {
+            if (! $node instanceof ClassLike) {
                 return false;
             }
 
-            return true;
+            // skip anonymous classes
+            return ! ($node instanceof Class_ && $node->isAnonymous());
         });
     }
 
@@ -157,9 +229,20 @@ final class BetterNodeFinder
         return $this->nodeFinder->findFirst($nodes, $filter);
     }
 
+    public function findPreviousAssignToExpr(Expr $expr): ?Assign
+    {
+        return $this->findFirstPrevious($expr, function (Node $node) use ($expr) {
+            if (! $node instanceof Assign) {
+                return false;
+            }
+
+            return $this->betterStandardPrinter->areNodesEqual($node->var, $expr);
+        });
+    }
+
     public function findFirstPrevious(Node $node, callable $filter): ?Node
     {
-        $node = $node instanceof Expression ? $node : $node->getAttribute(AttributeKey::CURRENT_EXPRESSION);
+        $node = $node instanceof Expression ? $node : $node->getAttribute(AttributeKey::CURRENT_STATEMENT);
         if ($node === null) {
             return null;
         }
@@ -171,27 +254,43 @@ final class BetterNodeFinder
         }
 
         // move to next expression
-        $previousExpression = $node->getAttribute(AttributeKey::PREVIOUS_EXPRESSION);
-        if ($previousExpression === null) {
+        $previousStatement = $node->getAttribute(AttributeKey::PREVIOUS_STATEMENT);
+        if ($previousStatement === null) {
             return null;
         }
 
-        return $this->findFirstPrevious($previousExpression, $filter);
+        return $this->findFirstPrevious($previousStatement, $filter);
+    }
+
+    /**
+     * @param class-string[] $types
+     */
+    public function findFirstPreviousOfTypes(Node $mainNode, array $types): ?Node
+    {
+        return $this->findFirstPrevious($mainNode, function (Node $node) use ($types) {
+            foreach ($types as $type) {
+                if (! is_a($node, $type, true)) {
+                    continue;
+                }
+
+                return true;
+            }
+
+            return false;
+        });
     }
 
     /**
      * @param Node|Node[] $nodes
      */
-    public function findFirstClass($nodes): ?Class_
+    private function findInstanceOfName($nodes, string $type, string $name): ?Node
     {
-        /** @var Class_[] $classes */
-        $classes = $this->findInstanceOf($nodes, Class_::class);
-        foreach ($classes as $class) {
-            if ($class->isAnonymous()) {
-                continue;
-            }
+        $foundInstances = $this->nodeFinder->findInstanceOf($nodes, $type);
 
-            return $class;
+        foreach ($foundInstances as $foundInstance) {
+            if ($this->nodeNameResolver->isName($foundInstance, $name)) {
+                return $foundInstance;
+            }
         }
 
         return null;

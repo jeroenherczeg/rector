@@ -1,49 +1,35 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Property\InjectAnnotationClassRector;
+declare(strict_types=1);
 
+namespace Rector\Core\Tests\Rector\Property\InjectAnnotationClassRector;
+
+use DI\Annotation\Inject as PHPDIInject;
 use Iterator;
-use Rector\Configuration\Option;
-use Rector\Rector\Property\InjectAnnotationClassRector;
-use Rector\Symfony\Tests\FrameworkBundle\AbstractToConstructorInjectionRectorSource\SomeKernelClass;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Symplify\PackageBuilder\Parameter\ParameterProvider;
+use JMS\DiExtraBundle\Annotation\Inject;
+use Rector\Core\Configuration\Option;
+use Rector\Core\Rector\Property\InjectAnnotationClassRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class InjectAnnotationClassRectorTest extends AbstractRectorTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        /** @var ParameterProvider $parameterProvider */
-        $parameterProvider = self::$container->get(ParameterProvider::class);
-        $parameterProvider->changeParameter(Option::KERNEL_CLASS_PARAMETER, SomeKernelClass::class);
-    }
-
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->setParameter(
+            Option::SYMFONY_CONTAINER_XML_PATH_PARAMETER,
+            __DIR__ . '/../../../../rules/symfony/tests/Rector/FrameworkBundle/GetToConstructorInjectionRector/xml/services.xml'
+        );
+
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [
-            // JMS
-            __DIR__ . '/Fixture/fixture.php.inc',
-        ];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture3.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture4.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture5.php.inc'];
-        yield [
-            // PHP DI
-            __DIR__ . '/Fixture/inject_from_var.php.inc',
-        ];
-        yield [__DIR__ . '/Fixture/inject_from_var2.php.inc'];
-        yield [__DIR__ . '/Fixture/inject_from_var3.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**
@@ -53,7 +39,7 @@ final class InjectAnnotationClassRectorTest extends AbstractRectorTestCase
     {
         return [
             InjectAnnotationClassRector::class => [
-                '$annotationClasses' => ['JMS\DiExtraBundle\Annotation\Inject', 'DI\Annotation\Inject'],
+                '$annotationClasses' => [Inject::class, PHPDIInject::class],
             ],
         ];
     }

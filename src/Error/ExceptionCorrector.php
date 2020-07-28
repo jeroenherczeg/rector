@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Error;
+declare(strict_types=1);
+
+namespace Rector\Core\Error;
 
 use PHPStan\AnalysedCodeException;
-use Rector\Contract\Rector\RectorInterface;
+use Rector\Core\Contract\Rector\RectorInterface;
 use Throwable;
 
 final class ExceptionCorrector

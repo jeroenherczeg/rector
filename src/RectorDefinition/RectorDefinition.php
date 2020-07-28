@@ -1,11 +1,13 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\RectorDefinition;
+declare(strict_types=1);
 
-use Rector\Contract\RectorDefinition\CodeSampleInterface;
+namespace Rector\Core\RectorDefinition;
+
+use Rector\Core\Contract\RectorDefinition\CodeSampleInterface;
 
 /**
- * @see \Rector\Tests\RectorDefinition\RectorDefinitionTest
+ * @see \Rector\Core\Tests\RectorDefinition\RectorDefinitionTest
  */
 final class RectorDefinition
 {

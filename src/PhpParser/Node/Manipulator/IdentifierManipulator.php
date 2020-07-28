@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node\Manipulator;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node\Manipulator;
 
 use Nette\Utils\Strings;
 use PhpParser\Node;
@@ -10,8 +12,8 @@ use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt\ClassMethod;
-use Rector\Exception\NodeChanger\NodeMissingIdentifierException;
-use Rector\PhpParser\Node\Resolver\NameResolver;
+use Rector\Core\Exception\NodeChanger\NodeMissingIdentifierException;
+use Rector\NodeNameResolver\NodeNameResolver;
 
 /**
  * This class renames node identifier, e.g. ClassMethod rename:
@@ -24,18 +26,18 @@ final class IdentifierManipulator
     /**
      * @var string[]
      */
-    private $nodeClassesWithIdentifier = [
+    private const NODE_CLASSES_WITH_IDENTIFIER = [
         ClassConstFetch::class, MethodCall::class, PropertyFetch::class, StaticCall::class, ClassMethod::class,
     ];
 
     /**
-     * @var NameResolver
+     * @var NodeNameResolver
      */
-    private $nameResolver;
+    private $nodeNameResolver;
 
-    public function __construct(NameResolver $nameResolver)
+    public function __construct(NodeNameResolver $nodeNameResolver)
     {
-        $this->nameResolver = $nameResolver;
+        $this->nodeNameResolver = $nodeNameResolver;
     }
 
     /**
@@ -46,7 +48,7 @@ final class IdentifierManipulator
     {
         $this->ensureNodeHasIdentifier($node);
 
-        $oldNodeMethodName = $this->nameResolver->getName($node);
+        $oldNodeMethodName = $this->resolveOldMethodName($node);
         if ($oldNodeMethodName === null) {
             return;
         }
@@ -61,7 +63,7 @@ final class IdentifierManipulator
     {
         $this->ensureNodeHasIdentifier($node);
 
-        $name = $this->nameResolver->getName($node);
+        $name = $this->nodeNameResolver->getName($node);
         if ($name === null) {
             return;
         }
@@ -72,7 +74,7 @@ final class IdentifierManipulator
 
     private function ensureNodeHasIdentifier(Node $node): void
     {
-        if (in_array(get_class($node), $this->nodeClassesWithIdentifier, true)) {
+        if (in_array(get_class($node), self::NODE_CLASSES_WITH_IDENTIFIER, true)) {
             return;
         }
 
@@ -80,7 +82,16 @@ final class IdentifierManipulator
             'Node "%s" does not contain a "$name" property with "%s". Pass only one of "%s".',
             get_class($node),
             Identifier::class,
-            implode('", "', $this->nodeClassesWithIdentifier)
+            implode('", "', self::NODE_CLASSES_WITH_IDENTIFIER)
         ));
+    }
+
+    private function resolveOldMethodName(Node $node): ?string
+    {
+        if ($node instanceof StaticCall || $node instanceof MethodCall) {
+            return $this->nodeNameResolver->getName($node->name);
+        }
+
+        return $this->nodeNameResolver->getName($node);
     }
 }

@@ -1,26 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\ClassMethod\AddReturnTypeDeclarationRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\ClassMethod\AddReturnTypeDeclarationRector;
 
 use Iterator;
-use Rector\Rector\ClassMethod\AddReturnTypeDeclarationRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Rector\Tests\Rector\ClassMethod\AddReturnTypeDeclarationRector\Source\PHPUnitTestCase;
+use Rector\Core\Rector\ClassMethod\AddReturnTypeDeclarationRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\ClassMethod\AddReturnTypeDeclarationRector\Source\PHPUnitTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class AddReturnTypeDeclarationRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/extended_parent.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**
@@ -31,7 +33,7 @@ final class AddReturnTypeDeclarationRectorTest extends AbstractRectorTestCase
         return [
             AddReturnTypeDeclarationRector::class => [
                 '$typehintForMethodByClass' => [
-                    'Rector\Tests\Rector\Typehint\AddReturnTypeDeclarationRector\Fixture\SomeClass' => [
+                    'Rector\Core\Tests\Rector\Typehint\AddReturnTypeDeclarationRector\Fixture\SomeClass' => [
                         'parse' => 'array',
                         'resolve' => 'SomeType',
                         'nullable' => '?SomeType',

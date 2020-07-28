@@ -1,18 +1,23 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Architecture\DependencyInjection;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Architecture\DependencyInjection;
 
 use Nette\Utils\Strings;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\ClassMethod;
 use PHPStan\Type\ObjectType;
-use Rector\Configuration\Rector\Architecture\DependencyInjection\VariablesToPropertyFetchCollection;
+use Rector\Core\Configuration\Collector\VariablesToPropertyFetchCollection;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\CodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\CodeSample;
-use Rector\RectorDefinition\RectorDefinition;
 
+/**
+ * @see \Rector\Core\Tests\Rector\Architecture\DependencyInjection\ActionInjectionToConstructorInjectionRector\ActionInjectionToConstructorInjectionRectorTest
+ */
 final class ReplaceVariableByPropertyFetchRector extends AbstractRector
 {
     /**
@@ -120,13 +125,13 @@ PHP
             return false;
         }
 
-        /** @var ClassMethod|null $methodNode */
-        $methodNode = $variable->getAttribute(AttributeKey::METHOD_NODE);
-        if ($methodNode === null) {
+        /** @var ClassMethod|null $classMethod */
+        $classMethod = $variable->getAttribute(AttributeKey::METHOD_NODE);
+        if ($classMethod === null) {
             return false;
         }
 
         // is probably in controller action
-        return $methodNode->isPublic();
+        return $classMethod->isPublic();
     }
 }

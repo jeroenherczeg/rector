@@ -1,86 +1,51 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Node\Manipulator;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Node\Manipulator;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\ArrayDimFetch;
 use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\AssignOp;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\List_;
-use PhpParser\Node\Expr\PropertyFetch;
-use PhpParser\Node\Expr\StaticPropertyFetch;
-use Rector\PhpParser\Node\Resolver\NameResolver;
+use PhpParser\Node\Expr\PostDec;
+use PhpParser\Node\Expr\PostInc;
+use PhpParser\Node\Expr\PreDec;
+use PhpParser\Node\Expr\PreInc;
+use PhpParser\Node\Stmt\Expression;
+use Rector\Core\PhpParser\Printer\BetterStandardPrinter;
+use Rector\NodeNameResolver\NodeNameResolver;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 
 final class AssignManipulator
 {
     /**
-     * @var NameResolver
+     * @var string[]
      */
-    private $nameResolver;
-
-    public function __construct(NameResolver $nameResolver)
-    {
-        $this->nameResolver = $nameResolver;
-    }
+    private const MODIFYING_NODES = [
+        AssignOp::class,
+        PreDec::class,
+        PostDec::class,
+        PreInc::class,
+        PostInc::class,
+    ];
 
     /**
-     * Checks:
-     * $this->x = y;
-     * $this->x[] = y;
+     * @var NodeNameResolver
      */
-    public function isLocalPropertyAssign(Node $node): bool
-    {
-        if (! $node instanceof Assign) {
-            return false;
-        }
-
-        if ($node->var instanceof ArrayDimFetch) {
-            $potentialPropertyFetch = $node->var->var;
-        } else {
-            $potentialPropertyFetch = $node->var;
-        }
-
-        return $potentialPropertyFetch instanceof PropertyFetch || $potentialPropertyFetch instanceof StaticPropertyFetch;
-    }
+    private $nodeNameResolver;
 
     /**
-     * Is: "$this->value = <$value>"
-     *
-     * @param string[] $propertyNames
+     * @var BetterStandardPrinter
      */
-    public function isLocalPropertyAssignWithPropertyNames(Node $node, array $propertyNames): bool
+    private $betterStandardPrinter;
+
+    public function __construct(BetterStandardPrinter $betterStandardPrinter, NodeNameResolver $nodeNameResolver)
     {
-        if (! $this->isLocalPropertyAssign($node)) {
-            return false;
-        }
-
-        /** @var Assign $node */
-        if ($node->var instanceof ArrayDimFetch) {
-            /** @var PropertyFetch|StaticPropertyFetch $propertyFetch */
-            $propertyFetch = $node->var->var;
-        } else {
-            /** @var PropertyFetch|StaticPropertyFetch $propertyFetch */
-            $propertyFetch = $node->var;
-        }
-
-        return $this->nameResolver->isNames($propertyFetch, $propertyNames);
-    }
-
-    /**
-     * Covers:
-     * - $this->propertyName = <$expr>;
-     * - self::$propertyName = <$expr>;
-     * - $this->propertyName[] = <$expr>;
-     * - self::$propertyName[] = <$expr>;
-     */
-    public function matchPropertyAssignExpr(Assign $assign, string $propertyName): ?Expr
-    {
-        if (! $this->isLocalPropertyAssignWithPropertyNames($assign, [$propertyName])) {
-            return null;
-        }
-
-        return $assign->expr;
+        $this->nodeNameResolver = $nodeNameResolver;
+        $this->betterStandardPrinter = $betterStandardPrinter;
     }
 
     /**
@@ -97,6 +62,70 @@ final class AssignManipulator
             return false;
         }
 
-        return $this->nameResolver->isName($assign->expr, 'each');
+        return $this->nodeNameResolver->isName($assign->expr, 'each');
+    }
+
+    public function isNodeLeftPartOfAssign(Node $node): bool
+    {
+        $parentNode = $node->getAttribute(AttributeKey::PARENT_NODE);
+        if ($parentNode instanceof Assign && $parentNode->var === $node) {
+            return true;
+        }
+
+        if ($parentNode !== null && $this->isValueModifyingNode($parentNode)) {
+            return true;
+        }
+
+        // traverse up to array dim fetches
+        if ($parentNode instanceof ArrayDimFetch) {
+            $previousParentNode = $parentNode;
+            while ($parentNode instanceof ArrayDimFetch) {
+                $previousParentNode = $parentNode;
+                $parentNode = $parentNode->getAttribute(AttributeKey::PARENT_NODE);
+            }
+
+            if ($parentNode instanceof Assign) {
+                return $parentNode->var === $previousParentNode;
+            }
+        }
+
+        return false;
+    }
+
+    public function isNodePartOfAssign(?Node $node): bool
+    {
+        if ($node === null) {
+            return false;
+        }
+
+        $previousNode = $node;
+        $parentNode = $node->getAttribute(AttributeKey::PARENT_NODE);
+
+        while ($parentNode !== null && ! $parentNode instanceof Expression) {
+            if ($parentNode instanceof Assign && $this->betterStandardPrinter->areNodesEqual(
+                $parentNode->var,
+                $previousNode
+            )) {
+                return true;
+            }
+
+            $previousNode = $parentNode;
+            $parentNode = $parentNode->getAttribute(AttributeKey::PARENT_NODE);
+        }
+
+        return false;
+    }
+
+    private function isValueModifyingNode(Node $node): bool
+    {
+        foreach (self::MODIFYING_NODES as $modifyingNode) {
+            if (! is_a($node, $modifyingNode)) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }

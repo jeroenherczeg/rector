@@ -1,10 +1,12 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\RectorDefinition;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\RectorDefinition;
 
 use PHPUnit\Framework\TestCase;
-use Rector\RectorDefinition\CodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\RectorDefinition\CodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 use stdClass;
 use TypeError;
 

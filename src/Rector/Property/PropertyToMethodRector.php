@@ -1,21 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\Property;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\Property;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\Property\PropertyToMethodRector\PropertyToMethodRectorTest
+ * @see \Rector\Core\Tests\Rector\Property\PropertyToMethodRector\PropertyToMethodRectorTest
  */
 final class PropertyToMethodRector extends AbstractRector
 {
+    /**
+     * @var string
+     */
+    private const GET = 'get';
+
     /**
      * @var string[][][]
      */
@@ -47,7 +54,7 @@ PHP
                     '$perClassPropertyToMethods' => [
                         'SomeObject' => [
                             'property' => [
-                                'get' => 'getProperty',
+                                self::GET => 'getProperty',
                                 'set' => 'setProperty',
                             ],
                         ],
@@ -67,7 +74,7 @@ PHP
                     '$perClassPropertyToMethods' => [
                         'SomeObject' => [
                             'property' => [
-                                'get' => [
+                                self::GET => [
                                     'method' => 'getConfig',
                                     'arguments' => ['someArg'],
                                 ],
@@ -132,20 +139,20 @@ PHP
         }
 
         // simple method name
-        if (is_string($newMethodMatch['get'])) {
-            $assign->expr = $this->createMethodCall($propertyFetchNode->var, $newMethodMatch['get']);
+        if (is_string($newMethodMatch[self::GET])) {
+            $assign->expr = $this->createMethodCall($propertyFetchNode->var, $newMethodMatch[self::GET]);
 
             return $assign;
 
             // method with argument
         }
 
-        if (is_array($newMethodMatch['get'])) {
-            $args = $this->createArgs($newMethodMatch['get']['arguments']);
+        if (is_array($newMethodMatch[self::GET])) {
+            $args = $this->createArgs($newMethodMatch[self::GET]['arguments']);
 
             $assign->expr = $this->createMethodCall(
                 $propertyFetchNode->var,
-                $newMethodMatch['get']['method'],
+                $newMethodMatch[self::GET]['method'],
                 $args
             );
 
@@ -174,7 +181,8 @@ PHP
             /** @var Identifier $identifierNode */
             $identifierNode = $propertyFetch->name;
 
-            return $propertyToMethods[$identifierNode->toString()]; //[$type];
+            //[$type];
+            return $propertyToMethods[$identifierNode->toString()];
         }
 
         return null;

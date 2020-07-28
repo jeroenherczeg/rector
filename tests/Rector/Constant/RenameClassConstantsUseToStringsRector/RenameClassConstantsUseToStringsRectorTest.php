@@ -1,25 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Constant\RenameClassConstantsUseToStringsRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Constant\RenameClassConstantsUseToStringsRector;
 
 use Iterator;
-use Nette\Configurator;
-use Rector\Rector\Constant\RenameClassConstantsUseToStringsRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Rector\Constant\RenameClassConstantsUseToStringsRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Tests\Rector\Constant\RenameClassConstantsUseToStringsRector\Source\OldClassWithConstants;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class RenameClassConstantsUseToStringsRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**
@@ -30,7 +33,7 @@ final class RenameClassConstantsUseToStringsRectorTest extends AbstractRectorTes
         return [
             RenameClassConstantsUseToStringsRector::class => [
                 '$oldConstantsToNewValuesByType' => [
-                    Configurator::class => [
+                    OldClassWithConstants::class => [
                         'DEVELOPMENT' => 'development',
                         'PRODUCTION' => 'production',
                     ],

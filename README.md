@@ -1,73 +1,81 @@
-# Rector - Upgrade your Legacy App to Modern Codebase
+# Rector - Upgrade Your Legacy App to a Modern Codebase
 
 Rector is a **rec**onstruc**tor** tool - it does **instant upgrades** and **instant refactoring** of your code.
-Why doing it manually if 80% Rector can handle for you?
+Why refactor manually if Rector can handle 80% of the task for you?
 
-[![Build Status](https://img.shields.io/travis/rectorphp/rector/master.svg?style=flat-square)](https://travis-ci.org/rectorphp/rector)
 [![Coverage Status](https://img.shields.io/coveralls/rectorphp/rector/master.svg?style=flat-square)](https://coveralls.io/github/rectorphp/rector?branch=master)
 [![Downloads](https://img.shields.io/packagist/dt/rector/rector.svg?style=flat-square)](https://packagist.org/packages/rector/rector)
+[![SonarCube](https://img.shields.io/badge/SonarCube_Debt-%3C25-brightgreen.svg?style=flat-square)](https://sonarcloud.io/dashboard?id=rectorphp_rector)
 
+<br>
 
-![Rector-showcase](docs/images/rector-showcase.gif)
+- **[Online DEMO](https://getrector.org/demo)**
+- [Explore 500+ Rector Rules](/docs/rector_rules_overview.md)
+
+---
+
+![Rector-showcase](docs/images/rector-showcase-var.gif)
 
 <br>
 
 ## Sponsors
 
 Rector grows faster with your help, the more you help the more work it saves you.
-Check out [Rector's Patreon](https://www.patreon.com/rectorphp). One-time donation is welcomed [through PayPal](https://www.paypal.me/rectorphp).
+Check out [Rector's Patreon](https://www.patreon.com/rectorphp). One-time donations are welcome [through PayPal](https://www.paypal.me/rectorphp).
 
 Thank you:
 
-<a href="https://spaceflow.io/en"><img src="/docs/images/spaceflow.png"></a>
+<p>
+    <a href="https://www.startupjobs.cz/en/startup/scrumworks-s-r-o"><img src="/docs/images/amateri.png"></a>
+    <img src="/docs/images/space.png" width=40>
+    <a href="https://zenika.ca/en/en"><img src="/docs/images/zenika.png"></a>
+    <img src="/docs/images/space.png" width=40>
+    <a href="https://spaceflow.io/en"><img src="/docs/images/spaceflow.png"></a>
+</p>
 
 <br>
 
 ## Open-Source First
 
-Rector **instantly upgrades and instantly refactors the PHP code of your application**. It covers many open-source projects and PHP changes itself:
+Rector **instantly upgrades and instantly refactors the PHP code of your application**.
+
+It supports all versions of PHP from 5.2 and many open-source projects:
 
 <br>
 
 <p align="center">
     <a href="/config/set/php"><img src="/docs/images/php.png"></a>
-    <img src="/docs/images/space.png" width=20>
-    <a href="/config/set/cakephp"><img src="/docs/images/cakephp.png"></a>
-    <img src="/docs/images/space.png" width=20>
+    <img src="/docs/images/space.png" width=40>
     <a href="/config/set/symfony"><img src="/docs/images/symfony.png"></a>
-    <img src="/docs/images/space.png" width=20>
-    <a href="/config/set/easy-corp"><img src="/docs/images/easy-admin.png"></a>
-    <img src="/docs/images/space.png" width=20>
-    <a href="/config/set/sylius"><img src="/docs/images/sylius.png"></a>
-    <img src="/docs/images/space.png" width=20>
-    <a href="/config/set/phpunit"><img src="/docs/images/phpunit.jpg"></a>
-    <img src="/docs/images/space.png" width=20>
-    <a href="/config/set/twig"><img src="/docs/images/twig.png"></a>
-    <img src="/docs/images/space.png" width=20>
+    <img src="/docs/images/space.png" width=40>
     <a href="/config/set/laravel"><img src="/docs/images/laravel.png"></a>
-    <img src="/docs/images/space.png" width=20>
-    <a href="/config/set/silverstripe"><img src="/docs/images/silverstripe.jpg"></a>
+    <img src="/docs/images/space.png" width=40>
+    <a href="/config/set/twig"><img src="/docs/images/twig.png"></a>
+    <br>
+    <a href="https://github.com/palantirnet/drupal-rector/tree/master/config/drupal-8"><img src="/docs/images/drupal.png" alt="Drupal Rector rules"></a>
+    <img src="/docs/images/space.png" width=40>
+    <a href="/config/set/cakephp"><img src="/docs/images/cakephp.png"></a>
+    <img src="/docs/images/space.png" width=40>
+    <a href="/config/set/phpunit"><img src="/docs/images/phpunit.png"></a>
 </p>
 
 <br>
 
-## What can Rector do for You?
+## What Can Rector Do for You?
 
-- Rename classes, methods, properties, namespaces or constants
-- Complete [parameter, var or return type declarations](https://www.tomasvotruba.cz/blog/2019/01/03/how-to-complete-type-declarations-without-docblocks-with-rector/) based on static analysis of your code
-- Upgrade your code from PHP 5.3 to PHP 7.4
-- [Migrate your project from Nette to Symfony](https://www.tomasvotruba.cz/blog/2019/02/21/how-we-migrated-from-nette-to-symfony-in-3-weeks-part-1/)
-- [Complete PHP 7.4 property type declarations](https://www.tomasvotruba.cz/blog/2018/11/15/how-to-get-php-74-typed-properties-to-your-code-in-few-seconds/)
-- [Turn Laravel static to Dependency Injection](https://www.tomasvotruba.cz/blog/2019/03/04/how-to-turn-laravel-from-static-to-dependency-injection-in-one-day/)
+- [Upgrade 30 000 unit tests from PHPUnit 6 to 9 in 2 weeks](https://twitter.com/LBajsarowicz/status/1272947900016967683)
+- Complete [@var annotations or parameter/return type declarations](https://www.tomasvotruba.com/blog/2019/01/03/how-to-complete-type-declarations-without-docblocks-with-rector/)
+- [Complete PHP 7.4 property type declarations](https://www.tomasvotruba.com/blog/2018/11/15/how-to-get-php-74-typed-properties-to-your-code-in-few-seconds/)
+- Upgrade your code from **PHP 5.3 to 8.0**
+- [Migrate your project from Nette to Symfony](https://www.tomasvotruba.com/blog/2019/02/21/how-we-migrated-from-nette-to-symfony-in-3-weeks-part-1/)
+- [Refactor Laravel facades to dependency injection](https://www.tomasvotruba.com/blog/2019/03/04/how-to-turn-laravel-from-static-to-dependency-injection-in-one-day/)
 - And much more...
-
-...**look at the overview of [all available Rectors](/docs/AllRectorsOverview.md)** with before/after diffs and configuration examples. You can use them to build your own sets.
 
 ## How to Apply Coding Standards?
 
-The AST libraries that Rector uses, don't work well with coding standards, so it's better to let coding standard tools do that.
+Rector uses [nikic/php-parser](https://github.com/nikic/PHP-Parser/), that build on technology called *abstract syntax tree*) technology* (AST). AST doesn't care about spaces and produces mall-formatted code. That's why your project needs to have coding standard tool and set of rules, so it can make refactored nice and shiny again.
 
-Your project doesn't have one? Consider adding [EasyCodingStandard](https://github.com/Symplify/EasyCodingStandard), [PHP CS Fixer](https://github.com/FriendsOfPHP/PHP-CS-Fixer) or [PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer).
+Don't have any coding standard tool? Add [EasyCodingStandard](https://github.com/Symplify/EasyCodingStandard) and use prepared [`ecs-after-rector.php`](/ecs-after-rector.php) set.
 
 ## Install
 
@@ -75,19 +83,98 @@ Your project doesn't have one? Consider adding [EasyCodingStandard](https://gith
 composer require rector/rector --dev
 ```
 
-**Do you have conflicts on `composer require` or on run?**
+- Having conflicts during `composer require`? → Use the [Rector Prefixed](https://github.com/rectorphp/rector-prefixed)
+- Using a different PHP version than Rector supports? → Use the [Docker image](#run-rector-in-docker)
 
-- Use [Docker image](#run-rector-in-docker)!
+## Running Rector
+
+### A. Prepared Sets
+
+Featured open-source projects have **prepared sets**. You can find them in [`/config/set`](/config/set) or by autocomplete of [`Rector\Set\ValueObject\SetList`](/packages/set/src/ValueObject/SetList.php) constants in `rector.php` config.
+
+Let's say you pick the [`symfony40`](/config/set/symfony40.php) set and you want to upgrade your `/src` directory:
+
+```bash
+vendor/bin/rector process src --set symfony40 --dry-run
+```
+
+Rector will show you diff of files that it *would* change. To *make* the changes, drop `--dry-run`:
+
+```bash
+# apply upgrades to your code
+vendor/bin/rector process src --set symfony40
+```
+
+Some sets, such as [`code-quality`](/config/set/code-quality.php) can be used on a regular basis. **The best practise is to  use config over command line**:
+
+```php
+<?php
+// rector.php
+
+declare(strict_types=1);
+
+use Rector\Core\Configuration\Option;
+use Rector\Set\ValueObject\SetList;
+use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+
+return static function (ContainerConfigurator $containerConfigurator): void {
+    $parameters = $containerConfigurator->parameters();
+
+    $parameters->set(Option::SETS, [SetList::CODE_QUALITY]);
+};
+```
+
+PHP config format is a new [Symfony best practice](https://twitter.com/symfony_en/status/1284538366147678208).
+
+### B. Standalone Rules
+
+In the end, it's best to combine few of basic sets and drop [particular rules](/docs/rector_rules_overview.md) that you want to try:
+
+```yaml
+# rector.yaml
+parameters:
+    sets:
+        - code-quality
+
+services:
+    Rector\Php74\Rector\Property\TypedPropertyRector: null
+```
+
+Then let Rector refactor your code:
+
+```bash
+vendor/bin/rector process src
+```
+
+:+1:
+
+<br>
+
+*Note: `rector.yaml` is loaded by default. For different location, use `--config` option.*
+
+## Features
+
+### Paths
+
+If you're annoyed by repeating paths in arguments, you can move them to config instead:
+
+```yaml
+# rector.yaml
+parameters:
+    paths:
+        - 'src'
+        - 'tests'
+```
 
 ### Extra Autoloading
 
-Rector relies on project and autoloading of its classes. To specify your own autoload file, use `--autoload-file` option:
+Rector relies on whatever autoload setup the project it is fixing is using by using the Composer autoloader as default. To specify your own autoload file, use `--autoload-file` option:
 
 ```bash
 vendor/bin/rector process ../project --autoload-file ../project/vendor/autoload.php
 ```
 
-Or make use of `rector.yaml` config:
+Or use a `rector.yaml` configuration file:
 
 ```yaml
 # rector.yaml
@@ -97,7 +184,7 @@ parameters:
         - 'vendor/project-without-composer'
 ```
 
-## Exclude Paths and Rectors
+### Exclude Paths and Rectors
 
 You can also **exclude files or directories** (with regex or [fnmatch](http://php.net/manual/en/function.fnmatch.php)):
 
@@ -108,7 +195,7 @@ parameters:
         - '*/src/*/Tests/*'
 ```
 
-Do you want to use a whole set, except that one rule? Exclude it:
+You can use a whole set, except 1 rule:
 
 ```yaml
 # rector.yaml
@@ -117,189 +204,205 @@ parameters:
         - 'Rector\CodeQuality\Rector\If_\SimplifyIfReturnBoolRector'
 ```
 
-By default Rector uses language features of your PHP version. If you you want to use different PHP version than your system, put it in config:
-
-```yaml
-parameters:
-    php_version_features: '7.2' # your version 7.3
-```
-
-## Running Rector
-
-### A. Prepared Sets
-
-Featured open-source projects have **prepared sets**. You'll find them in [`/config/set`](/config/set) or by calling:
-
-```bash
-vendor/bin/rector sets
-```
-
-Let's say you pick the `symfony40` set and you want to upgrade your `/src` directory:
-
-```bash
-# show known changes in Symfony 4.0
-vendor/bin/rector process src --set symfony40 --dry-run
-```
-
-```bash
-# apply
-vendor/bin/rector process src --set symfony40
-```
-
-### B. Custom Sets
-
-1. Create `rector.yaml` with desired Rectors:
-
-    ```yaml
-    services:
-        Rector\Rector\Architecture\DependencyInjection\AnnotatedPropertyInjectToConstructorInjectionRector:
-            $annotation: "inject"
-    ```
-
-2. Run on your `/src` directory:
-
-    ```bash
-    vendor/bin/rector process src --dry-run
-    # apply
-    vendor/bin/rector process src
-    ```
-
-## 3 Steps to Create Own Rector
-
-First, make sure it's not covered by [any existing Rectors yet](/docs/AllRectorsOverview.md).
-
-Let's say we want to **change method calls from `set*` to `change*`**.
-
-```diff
- $user = new User();
--$user->setPassword('123456');
-+$user->changePassword('123456');
-```
-
-### 1. Create New Rector and Implement Methods
-
-Create a class that extends [`Rector\Rector\AbstractRector`](/src/Rector/AbstractRector.php). It has useful methods like checking node type and name. Just run `$this->` and let PHPStorm show you all possible methods.
+For in-file exclusion, use `@noRector \FQN name` annotation:
 
 ```php
-<?php declare(strict_types=1);
-
-namespace App\Rector;
-
-use Nette\Utils\Strings;
-use PhpParser\Node;
-use PhpParser\Node\Identifier;
-use PhpParser\Node\Expr\MethodCall;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\CodeSample;
-use Rector\RectorDefinition\RectorDefinition;
-
-final class MyFirstRector extends AbstractRector
+class SomeClass
 {
-    public function getDefinition(): RectorDefinition
-    {
-        // what does this do?
-        // minimalistic before/after sample - to explain in code
-        return new RectorDefinition('Change method calls from set* to change*.', [
-            new CodeSample('$user->setPassword("123456");', '$user->changePassword("123456");')
-        ]);
-    }
-
     /**
-     * @return string[]
+     * @noRector \Rector\DeadCode\Rector\ClassMethod\RemoveEmptyClassMethodRector
      */
-    public function getNodeTypes(): array
+    public function foo()
     {
-        // what node types we look for?
-        // pick any node from https://github.com/rectorphp/rector/blob/master/docs/NodesOverview.md
-        return [MethodCall::class];
-    }
-
-    /**
-     * @param MethodCall $node - we can add "MethodCall" type here, because only this node is in "getNodeTypes()"
-     */
-    public function refactor(Node $node): ?Node
-    {
-        // we only care about "set*" method names
-        if (! $this->isName($node, 'set*')) {
-            // return null to skip it
-            return null;
-        }
-
-        $methodCallName = $this->getName($node);
-        $newMethodCallName = Strings::replace($methodCallName, '#^set#', 'change');
-
-        $node->name = new Identifier($newMethodCallName);
-
-        // return $node if you modified it
-        return $node;
+        /** @noRector \Rector\DeadCode\Rector\Plus\RemoveDeadZeroAndOneOperationRector */
+        round(1 + 0);
     }
 }
 ```
 
-### 2. Register it
+### Run Just 1 Rector Rule
+
+Do you have config that includes many sets and Rectors? You might want to run only a single Rector. The `--only` argument allows that, e.g.:
+
+```bash
+vendor/bin/rector process src --set solid --only Rector\SOLID\Rector\Class_\FinalizeClassesWithoutChildrenRector
+```
+
+Or just short name:
+
+```bash
+vendor/bin/rector process src --set solid --only FinalizeClassesWithoutChildrenRector
+```
+
+Both will run only `Rector\SOLID\Rector\Class_\FinalizeClassesWithoutChildrenRector`.
+
+### Provide PHP Version
+
+By default Rector uses the language features matching your system version of PHP. You can configure it for a different PHP version:
 
 ```yaml
 # rector.yaml
-services:
-    App\Rector\MyFirstRector: ~
+parameters:
+    php_version_features: '7.2' # your version is 7.3
 ```
 
-### 3. Let Rector Refactor Your Code
+### Safe Types
+
+In default setting:
+
+```yaml
+# rector.yaml
+parameters:
+    safe_types: false
+```
+
+All docblocks are taken seriously, e.g. with [typed properties](https://github.com/rectorphp/rector/blob/master/docs/rector_rules_overview.md#typedpropertyrector) rule:
+
+```diff
+ <?php
+
+ class ValueObject
+ {
+-    public $value;
++    public string $value;
+
+    /**
+     * @param string $value
+     */
+    public function __construct($value)
+    {
+        $this->value = $value;
+    }
+}
+```
+
+Do you want to use only explicit PHP type declaration? Enable `safe_types`:
+
+```yaml
+# rector.yaml
+parameters:
+    safe_types: true
+```
+
+Then, docblocks are skipped:
+
+```diff
+ <?php
+
+ class ValueObject
+ {
+     public $value;
+
+-    public $count;
++    public int $count;
+
+    /**
+     * @param string $value
+     */
+    public function __construct($value, int $count)
+    {
+        $this->value = $value;
+        $this->count = $count
+    }
+}
+```
+
+### Import Use Statements
+
+FQN classes are not imported by default. If you don't want to do it manually after every Rector run, enable it by:
+
+```yaml
+# rector.yaml
+parameters:
+    auto_import_names: true
+```
+
+You can also fine-tune how these imports are processed:
+
+```yaml
+# rector.yaml
+parameters:
+    # this will not import root namespace classes, like \DateTime or \Exception
+    import_short_classes: false
+
+    # this will not import classes used in PHP DocBlocks, like in /** @var \Some\Class */
+    import_doc_blocks: false
+```
+
+### Limit Execution to Changed Files
+
+Execution can be limited to changed files using the `process` option `--match-git-diff`.
+This option will filter the files included by the configuration, creating an intersection with the files listed in `git diff`.
 
 ```bash
-# see the diff first
-vendor/bin/rector process src --dry-run
-
-# if it's ok, apply
-vendor/bin/rector process src
+vendor/bin/rector process src --match-git-diff
 ```
 
-That's it!
+This option is useful in CI with pull-requests that only change few files.
+
+### Symfony Container
+
+To work with some Symfony rules, you now need to link your container XML file
+
+```yaml
+# rector.yaml
+parameters:
+    # path to load services from
+    symfony_container_xml_path: 'var/cache/dev/AppKernelDevDebugContainer.xml'
+```
+
+<br>
 
 ## More Detailed Documentation
 
-- **[All Rectors Overview](/docs/AllRectorsOverview.md)**
-- [How Rector Works?](/docs/HowItWorks.md)
-- [Nodes Overview](/docs/NodesOverview.md)
+- **[All Rectors Overview](/docs/rector_rules_overview.md)**
+- [Create own Rule](/docs/create_own_rule.md)
+- [Generate Rector from Recipe](/docs/rector_recipe.md)
+- [How Does Rector Work?](/docs/how_it_works.md)
+- [PHP Parser Nodes Overview](/docs/nodes_overview.md)
+- [Add Checkstyle with your CI](/docs/checkstyle.md)
+
+<br>
 
 ## How to Contribute
 
-Just follow 3 rules:
+See [the contribution guide](/CONTRIBUTING.md).
 
-- **1 feature per pull-request**
-- **New features need tests**
-- Tests, coding standards and PHPStan **checks must pass**:
-
-    ```bash
-    composer complete-check
-    ```
-
-    Do you need to fix coding standards? Run:
-
-    ```bash
-    composer fix-cs
-    ```
-
-We would be happy to merge your feature then.
+<br>
 
 ## Run Rector in Docker
 
-With this command, you can process your project with Rector from docker:
+You can run Rector on your project using Docker:
 
 ```bash
-docker run -v $(pwd):/project rector/rector:latest process /project/src --set symfony40 --dry-run
+docker run --rm -v $(pwd):/project rector/rector:latest process /project/src --set symfony40 --dry-run
 
-# Note that a volume is mounted from `pwd` into `/project` which can be accessed later.
+# Note that a volume is mounted from `pwd` (the current directory) into `/project` which can be accessed later.
 ```
 
 Using `rector.yaml`:
 
 ```bash
-docker run -v $(pwd):/project rector/rector:latest process /project/app --config /project/rector.yaml --autoload-file /project/vendor/autoload.php --dry-run
+docker run --rm -v $(pwd):/project rector/rector:latest process /project/app \
+--config /project/rector.yaml \
+--autoload-file /project/vendor/autoload.php \
+--dry-run
 ```
 
-### Community Packages
+<br>
 
-Do you use Rector to upgrade your code? Share it here:
+### Debugging
 
-- [drupal8-rector/drupal8-rector](https://github.com/drupal8-rector/drupal8-rector) by @mxr576
+1. Make sure XDebug is installed and configured
+2. Add `--xdebug` option when running Rector
+
+Without XDebug, you can use `--debug` option, that will print nested exceptions output.
+
+<br>
+
+## Community Packages
+
+Do you use Rector to upgrade your code? Add it here:
+
+- [palantirnet/drupal-rector](https://github.com/palantirnet/drupal-rector) by [Palantir.net](https://github.com/palantirnet) for [Drupal](https://www.drupal.org/)
+- [sabbelasichon/typo3-rector](https://github.com/sabbelasichon/typo3-rector) for [TYPO3](https://typo3.org/)

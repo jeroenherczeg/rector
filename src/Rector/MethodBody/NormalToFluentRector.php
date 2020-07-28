@@ -1,17 +1,20 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Rector\MethodBody;
+declare(strict_types=1);
+
+namespace Rector\Core\Rector\MethodBody;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
-use Rector\Rector\AbstractRector;
-use Rector\RectorDefinition\ConfiguredCodeSample;
-use Rector\RectorDefinition\RectorDefinition;
+use Rector\Core\Rector\AbstractRector;
+use Rector\Core\RectorDefinition\ConfiguredCodeSample;
+use Rector\Core\RectorDefinition\RectorDefinition;
 
 /**
- * @see \Rector\Tests\Rector\MethodBody\NormalToFluentRector\NormalToFluentRectorTest
+ * @see \Rector\Core\Tests\Rector\MethodBody\NormalToFluentRector\NormalToFluentRectorTest
  */
 final class NormalToFluentRector extends AbstractRector
 {
@@ -79,21 +82,12 @@ PHP
         // iterate from bottom to up, so we can merge
         for ($i = $classMethodStatementCount - 1; $i >= 0; --$i) {
             $stmt = $node->stmts[$i];
-
-            // we look only for 2+ stmts
-            if (! isset($node->stmts[$i - 1])) {
+            if ($this->shouldSkipPreviousStmt($node, $i, $stmt)) {
                 continue;
             }
 
-            // we look for 2 methods calls in a row
-            if (! $stmt instanceof Expression) {
-                continue;
-            }
-
+            /** @var Expression $prevStmt */
             $prevStmt = $node->stmts[$i - 1];
-            if (! $prevStmt instanceof Expression) {
-                continue;
-            }
 
             // here are 2 method calls statements in a row, while current one is first one
             if (! $this->isBothMethodCallMatch($stmt, $prevStmt)) {
@@ -103,7 +97,6 @@ PHP
 
                 // reset for new type
                 $this->collectedMethodCalls = [];
-
                 continue;
             }
 
@@ -118,6 +111,23 @@ PHP
         }
 
         return $node;
+    }
+
+    private function shouldSkipPreviousStmt(Node $node, int $i, Stmt $stmt): bool
+    {
+        // we look only for 2+ stmts
+        if (! isset($node->stmts[$i - 1])) {
+            return true;
+        }
+
+        // we look for 2 methods calls in a row
+        if (! $stmt instanceof Expression) {
+            return true;
+        }
+
+        $prevStmt = $node->stmts[$i - 1];
+
+        return ! $prevStmt instanceof Expression;
     }
 
     private function isBothMethodCallMatch(Expression $firstStmt, Expression $secondStmt): bool
@@ -169,7 +179,8 @@ PHP
         $methodCallsToAdd = array_reverse($methodCallsToAdd);
 
         foreach ($methodCallsToAdd as $methodCallToAdd) {
-            $fluentMethodCall->var = new MethodCall( // make var a parent method call
+            // make var a parent method call
+            $fluentMethodCall->var = new MethodCall(
                 $fluentMethodCall->var,
                 $methodCallToAdd->name,
                 $methodCallToAdd->args
@@ -184,7 +195,7 @@ PHP
                 continue;
             }
 
-            if ($this->isNames($methodCall, $methodNames)) {
+            if ($this->isNames($methodCall->name, $methodNames)) {
                 return $type;
             }
         }

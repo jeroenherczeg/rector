@@ -1,24 +1,28 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\NodeTraverser;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\NodeTraverser;
 
 use PhpParser\Node;
 use PhpParser\NodeTraverser;
-use Rector\Contract\Rector\PhpRectorInterface;
-use Rector\Testing\Application\EnabledRectorsProvider;
+use Rector\Caching\Contract\Rector\ZeroCacheRectorInterface;
+use Rector\Core\Configuration\Configuration;
+use Rector\Core\Contract\Rector\PhpRectorInterface;
+use Rector\Core\Testing\Application\EnabledRectorsProvider;
 use Symplify\PackageBuilder\Reflection\PrivatesAccessor;
 
 final class RectorNodeTraverser extends NodeTraverser
 {
     /**
-     * @var EnabledRectorsProvider
-     */
-    private $enabledRectorsProvider;
-
-    /**
      * @var PhpRectorInterface[]
      */
     private $allPhpRectors = [];
+
+    /**
+     * @var EnabledRectorsProvider
+     */
+    private $enabledRectorsProvider;
 
     /**
      * @var PrivatesAccessor
@@ -28,15 +32,31 @@ final class RectorNodeTraverser extends NodeTraverser
     /**
      * @param PhpRectorInterface[] $phpRectors
      */
-    public function __construct(EnabledRectorsProvider $enabledRectorsProvider, array $phpRectors = [])
-    {
+    public function __construct(
+        EnabledRectorsProvider $enabledRectorsProvider,
+        Configuration $configuration,
+        array $phpRectors = []
+    ) {
         $this->allPhpRectors = $phpRectors;
+
         foreach ($phpRectors as $phpRector) {
+            if ($configuration->isCacheEnabled() && ! $configuration->shouldClearCache() && $phpRector instanceof ZeroCacheRectorInterface) {
+                continue;
+            }
+
             $this->addVisitor($phpRector);
         }
 
         $this->enabledRectorsProvider = $enabledRectorsProvider;
         $this->privatesAccessor = new PrivatesAccessor();
+    }
+
+    /**
+     * @return PhpRectorInterface[]
+     */
+    public function getAllPhpRectors(): array
+    {
+        return $this->allPhpRectors;
     }
 
     /**
@@ -55,6 +75,20 @@ final class RectorNodeTraverser extends NodeTraverser
     public function getPhpRectorCount(): int
     {
         return count($this->visitors);
+    }
+
+    public function hasZeroCacheRectors(): bool
+    {
+        return (bool) $this->getZeroCacheRectorCount();
+    }
+
+    public function getZeroCacheRectorCount(): int
+    {
+        $zeroCacheRectors = array_filter($this->allPhpRectors, function (PhpRectorInterface $phpRector) {
+            return $phpRector instanceof ZeroCacheRectorInterface;
+        });
+
+        return count($zeroCacheRectors);
     }
 
     /**
@@ -81,13 +115,13 @@ final class RectorNodeTraverser extends NodeTraverser
 
     /**
      * @param mixed[] $configuration
-     * @param PhpRectorInterface $phpRector
      */
     private function addRectorConfiguration(array $configuration, PhpRectorInterface $phpRector): void
     {
         foreach ($configuration as $property => $value) {
             /** @var string $property */
-            $this->privatesAccessor->setPrivateProperty($phpRector, ltrim($property, '$'), $value);
+            $property = ltrim($property, '$');
+            $this->privatesAccessor->setPrivateProperty($phpRector, $property, $value);
         }
     }
 }

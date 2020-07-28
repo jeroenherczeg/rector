@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Printer;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Printer;
 
 use Nette\Utils\Strings;
 use PhpParser\Node;
@@ -19,10 +21,12 @@ use PhpParser\Node\Stmt\Nop;
 use PhpParser\Node\Stmt\TraitUse;
 use PhpParser\PrettyPrinter\Standard;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Symplify\PackageBuilder\FileSystem\SmartFileInfo;
+use Rector\NodeTypeResolver\PhpDoc\NodeAnalyzer\DocBlockManipulator;
+use Rector\PhpAttribute\Printer\ContentPhpAttributePlaceholderReplacer;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 /**
- * @see \Rector\Tests\PhpParser\Printer\BetterStandardPrinterTest
+ * @see \Rector\Core\Tests\PhpParser\Printer\BetterStandardPrinterTest
  */
 final class BetterStandardPrinter extends Standard
 {
@@ -33,10 +37,22 @@ final class BetterStandardPrinter extends Standard
     private $tabOrSpaceIndentCharacter = ' ';
 
     /**
+     * @var DocBlockManipulator
+     */
+    private $docBlockManipulator;
+
+    /**
+     * @var ContentPhpAttributePlaceholderReplacer
+     */
+    private $contentPhpAttributePlaceholderReplacer;
+
+    /**
      * @param mixed[] $options
      */
-    public function __construct(array $options = [])
-    {
+    public function __construct(
+        ContentPhpAttributePlaceholderReplacer $contentPhpAttributePlaceholderReplacer,
+        array $options = []
+    ) {
         parent::__construct($options);
 
         // print return type double colon right after the bracket "function(): string"
@@ -44,6 +60,16 @@ final class BetterStandardPrinter extends Standard
         $this->insertionMap['Stmt_ClassMethod->returnType'] = [')', false, ': ', null];
         $this->insertionMap['Stmt_Function->returnType'] = [')', false, ': ', null];
         $this->insertionMap['Expr_Closure->returnType'] = [')', false, ': ', null];
+
+        $this->contentPhpAttributePlaceholderReplacer = $contentPhpAttributePlaceholderReplacer;
+    }
+
+    /**
+     * @required
+     */
+    public function autowireBetterStandardPrinter(DocBlockManipulator $docBlockManipulator): void
+    {
+        $this->docBlockManipulator = $docBlockManipulator;
     }
 
     public function printFormatPreserving(array $stmts, array $origStmts, array $origTokens): string
@@ -51,7 +77,26 @@ final class BetterStandardPrinter extends Standard
         // detect per print
         $this->detectTabOrSpaceIndentCharacter($stmts);
 
-        return parent::printFormatPreserving($stmts, $origStmts, $origTokens);
+        $content = parent::printFormatPreserving($stmts, $origStmts, $origTokens);
+
+        // add new line in case of added stmts
+        if (count($stmts) !== count($origStmts) && ! (bool) Strings::match($content, "#\n$#")) {
+            $content .= $this->nl;
+        }
+
+        // php attributes
+        return $this->contentPhpAttributePlaceholderReplacer->decorateContent($content);
+    }
+
+    /**
+     * @param Node|Node[]|null $node
+     */
+    public function printWithoutComments($node): string
+    {
+        $printerNode = $this->print($node);
+
+        $nodeWithoutComments = $this->removeComments($printerNode);
+        return trim($nodeWithoutComments);
     }
 
     /**
@@ -67,12 +112,6 @@ final class BetterStandardPrinter extends Standard
             return 'UNABLE_TO_PRINT_ENCAPSED_STRING';
         }
 
-        // remove comments, for value compare
-        if ($node instanceof Node) {
-            $node = clone $node;
-            $node->setAttribute('comments', null);
-        }
-
         if (! is_array($node)) {
             $node = [$node];
         }
@@ -81,12 +120,33 @@ final class BetterStandardPrinter extends Standard
     }
 
     /**
+     * Removes all comments from both nodes
+     *
      * @param Node|Node[]|null $firstNode
      * @param Node|Node[]|null $secondNode
      */
     public function areNodesEqual($firstNode, $secondNode): bool
     {
-        return $this->print($firstNode) === $this->print($secondNode);
+        return $this->printWithoutComments($firstNode) === $this->printWithoutComments($secondNode);
+    }
+
+    /**
+     * @param Node[]|Node|null $stmts
+     */
+    public function prettyPrintFile($stmts): string
+    {
+        // to keep indexes from 0
+        if (is_array($stmts)) {
+            $stmts = array_values($stmts);
+        }
+
+        if ($stmts === null) {
+            $stmts = [];
+        } elseif (! is_array($stmts)) {
+            $stmts = [$stmts];
+        }
+
+        return parent::prettyPrintFile($stmts) . PHP_EOL;
     }
 
     /**
@@ -94,6 +154,7 @@ final class BetterStandardPrinter extends Standard
      */
     protected function setIndentLevel(int $level): void
     {
+        $level = max($level, 0);
         $this->indentLevel = $level;
         $this->nl = "\n" . str_repeat($this->tabOrSpaceIndentCharacter, $level);
     }
@@ -103,13 +164,7 @@ final class BetterStandardPrinter extends Standard
      */
     protected function indent(): void
     {
-        if ($this->tabOrSpaceIndentCharacter === ' ') {
-            // 4 spaces
-            $multiplier = 4;
-        } else {
-            // 1 tab
-            $multiplier = 1;
-        }
+        $multiplier = $this->tabOrSpaceIndentCharacter === ' ' ? 4 : 1;
 
         $this->indentLevel += $multiplier;
         $this->nl .= str_repeat($this->tabOrSpaceIndentCharacter, $multiplier);
@@ -150,6 +205,8 @@ final class BetterStandardPrinter extends Standard
         // reindex positions for printer
         $nodes = array_values($nodes);
 
+        $this->moveCommentsFromAttributeObjectToCommentsAttribute($nodes);
+
         $content = parent::pArray($nodes, $origNodes, $pos, $indentAdjustment, $parentNodeType, $subNodeName, $fixup);
 
         if ($content === null) {
@@ -181,41 +238,46 @@ final class BetterStandardPrinter extends Standard
     /**
      * Emulates 1_000 in PHP 7.3- version
      */
-    protected function pScalar_DNumber(DNumber $DNumber): string
+    protected function pScalar_DNumber(DNumber $dNumber): string
     {
-        if (is_string($DNumber->value)) {
-            return $DNumber->value;
+        if (is_string($dNumber->value)) {
+            return $dNumber->value;
         }
 
-        return parent::pScalar_DNumber($DNumber);
+        return parent::pScalar_DNumber($dNumber);
     }
 
     /**
-     * Add space after "use ("
+     * Add space:
+     * "use("
+     * ↓
+     * "use ("
      */
     protected function pExpr_Closure(Closure $closure): string
     {
-        return Strings::replace(parent::pExpr_Closure($closure), '#( use)\(#', '$1 (');
+        $closureContent = parent::pExpr_Closure($closure);
+
+        return Strings::replace($closureContent, '#( use)\(#', '$1 (');
     }
 
     /**
      * Do not add "()" on Expressions
      * @see https://github.com/rectorphp/rector/pull/401#discussion_r181487199
      */
-    protected function pExpr_Yield(Yield_ $node): string
+    protected function pExpr_Yield(Yield_ $yield): string
     {
-        if ($node->value === null) {
+        if ($yield->value === null) {
             return 'yield';
         }
 
-        $parentNode = $node->getAttribute(AttributeKey::PARENT_NODE);
+        $parentNode = $yield->getAttribute(AttributeKey::PARENT_NODE);
         $shouldAddBrackets = $parentNode instanceof Expression;
 
         return sprintf(
             '%syield %s%s%s',
             $shouldAddBrackets ? '(' : '',
-            $node->key !== null ? $this->p($node->key) . ' => ' : '',
-            $this->p($node->value),
+            $yield->key !== null ? $this->p($yield->key) . ' => ' : '',
+            $this->p($yield->value),
             $shouldAddBrackets ? ')' : ''
         );
     }
@@ -224,26 +286,45 @@ final class BetterStandardPrinter extends Standard
      * Print arrays in short [] by default,
      * to prevent manual explicit array shortening.
      */
-    protected function pExpr_Array(Array_ $node): string
+    protected function pExpr_Array(Array_ $array): string
     {
-        if (! $node->hasAttribute('kind')) {
-            $node->setAttribute('kind', Array_::KIND_SHORT);
+        if (! $array->hasAttribute(AttributeKey::KIND)) {
+            $array->setAttribute(AttributeKey::KIND, Array_::KIND_SHORT);
         }
 
-        return parent::pExpr_Array($node);
+        return parent::pExpr_Array($array);
     }
 
     /**
      * Fixes escaping of regular patterns
      */
-    protected function pScalar_String(String_ $node): string
+    protected function pScalar_String(String_ $string): string
     {
-        $kind = $node->getAttribute('kind', String_::KIND_SINGLE_QUOTED);
-        if ($kind === String_::KIND_DOUBLE_QUOTED && $node->getAttribute('is_regular_pattern')) {
-            return '"' . $node->value . '"';
+        if ($string->getAttribute(AttributeKey::IS_REGULAR_PATTERN)) {
+            $kind = $string->getAttribute(AttributeKey::KIND, String_::KIND_SINGLE_QUOTED);
+            if ($kind === String_::KIND_DOUBLE_QUOTED) {
+                return $this->wrapValueWith($string, '"');
+            }
+
+            if ($kind === String_::KIND_SINGLE_QUOTED) {
+                return $this->wrapValueWith($string, "'");
+            }
         }
 
-        return parent::pScalar_String($node);
+        return parent::pScalar_String($string);
+    }
+
+    /**
+     * @param Node[] $nodes
+     */
+    protected function pStmts(array $nodes, bool $indent = true): string
+    {
+        $this->moveCommentsFromAttributeObjectToCommentsAttribute($nodes);
+
+        $content = parent::pStmts($nodes, $indent);
+
+        // php attributes
+        return $this->contentPhpAttributePlaceholderReplacer->decorateContent($content);
     }
 
     /**
@@ -258,8 +339,8 @@ final class BetterStandardPrinter extends Standard
             . '(' . $this->pCommaSeparated($classMethod->params) . ')'
             . ($classMethod->returnType !== null ? ': ' . $this->p($classMethod->returnType) : '')
             . ($classMethod->stmts !== null ? $this->nl . '{' . $this->pStmts(
-                $classMethod->stmts
-            ) . $this->nl . '}' : ';');
+                    $classMethod->stmts
+                ) . $this->nl . '}' : ';');
     }
 
     /**
@@ -270,12 +351,10 @@ final class BetterStandardPrinter extends Standard
         $shouldReindex = false;
 
         foreach ($class->stmts as $key => $stmt) {
-            if ($stmt instanceof TraitUse) {
-                // remove empty ones
-                if (count($stmt->traits) === 0) {
-                    unset($class->stmts[$key]);
-                    $shouldReindex = true;
-                }
+            // remove empty ones
+            if ($stmt instanceof TraitUse && count($stmt->traits) === 0) {
+                unset($class->stmts[$key]);
+                $shouldReindex = true;
             }
         }
 
@@ -294,20 +373,6 @@ final class BetterStandardPrinter extends Standard
         $declareString = parent::pStmt_Declare($declare);
 
         return Strings::replace($declareString, '#\s+#');
-    }
-
-    /**
-     * @param Node[] $nodes
-     */
-    private function containsNop(array $nodes): bool
-    {
-        foreach ($nodes as $node) {
-            if ($node instanceof Nop) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -333,12 +398,57 @@ final class BetterStandardPrinter extends Standard
                 continue;
             }
 
-            $whitespacesChars = Strings::matchAll($fileInfo->getContents(), '#^( |\t)#m');
-            foreach ($whitespacesChars as $whitespacesChar) {
-                // let the first win
-                $this->tabOrSpaceIndentCharacter = $whitespacesChar[0];
-                break;
+            $whitespaces = count(Strings::matchAll($fileInfo->getContents(), '#^ {4}#m'));
+            $tabs = count(Strings::matchAll($fileInfo->getContents(), '#^\t#m'));
+
+            // tab vs space
+            $this->tabOrSpaceIndentCharacter = ($whitespaces <=> $tabs) >= 0 ? ' ' : "\t";
+        }
+    }
+
+    private function removeComments(string $printerNode): string
+    {
+        // remove /** ... */
+        $printerNode = Strings::replace($printerNode, '#\/*\*(.*?)\*\/#s');
+
+        // remove /* ... */
+        $printerNode = Strings::replace($printerNode, '#\/*\*(.*?)\*\/#s');
+
+        // remove # ...
+        $printerNode = Strings::replace($printerNode, '#^(\s+)?\#(.*?)$#m');
+
+        // remove // ...
+        return Strings::replace($printerNode, '#\/\/(.*?)$#m');
+    }
+
+    private function moveCommentsFromAttributeObjectToCommentsAttribute(array $nodes): void
+    {
+        // move phpdoc from node to "comment" attribute
+        foreach ($nodes as $node) {
+            if (! $node instanceof Node) {
+                continue;
+            }
+
+            $this->docBlockManipulator->updateNodeWithPhpDocInfo($node);
+        }
+    }
+
+    /**
+     * @param Node[] $nodes
+     */
+    private function containsNop(array $nodes): bool
+    {
+        foreach ($nodes as $node) {
+            if ($node instanceof Nop) {
+                return true;
             }
         }
+
+        return false;
+    }
+
+    private function wrapValueWith(String_ $string, string $wrap): string
+    {
+        return $wrap . $string->value . $wrap;
     }
 }

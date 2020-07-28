@@ -1,4 +1,8 @@
-<?php declare(strict_types=1);
+<?php
+
+/** @source https://github.com/symfony/symfony/blob/master/src/Symfony/Component/Routing/Annotation/Route.php */
+
+declare(strict_types=1);
 
 namespace Symfony\Component\Routing\Annotation;
 

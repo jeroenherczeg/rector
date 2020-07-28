@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\New_\NewToStaticCallRector\Source;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\New_\NewToStaticCallRector\Source;
 
 final class FromNewClass
 {

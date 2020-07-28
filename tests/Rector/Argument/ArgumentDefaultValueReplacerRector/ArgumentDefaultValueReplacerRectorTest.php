@@ -1,26 +1,27 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Argument\ArgumentDefaultValueReplacerRector;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Argument\ArgumentDefaultValueReplacerRector;
 
 use Iterator;
-use Rector\Rector\Argument\ArgumentDefaultValueReplacerRector;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use Rector\Core\Rector\Argument\ArgumentDefaultValueReplacerRector;
+use Rector\Core\Testing\PHPUnit\AbstractRectorTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ArgumentDefaultValueReplacerRectorTest extends AbstractRectorTestCase
 {
     /**
-     * @dataProvider provideDataForTest()
+     * @dataProvider provideData()
      */
-    public function test(string $file): void
+    public function test(SmartFileInfo $fileInfo): void
     {
-        $this->doTestFile($file);
+        $this->doTestFileInfo($fileInfo);
     }
 
-    public function provideDataForTest(): Iterator
+    public function provideData(): Iterator
     {
-        yield [__DIR__ . '/Fixture/fixture.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture2.php.inc'];
-        yield [__DIR__ . '/Fixture/fixture3.php.inc'];
+        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**
@@ -43,28 +44,32 @@ final class ArgumentDefaultValueReplacerRectorTest extends AbstractRectorTestCas
                     ],
                     'Symfony\Component\Yaml\Yaml' => [
                         'parse' => [
-                            1 => [[
-                                'before' => ['false', 'false', 'true'],
-                                'after' => 'Symfony\Component\Yaml\Yaml::PARSE_OBJECT_FOR_MAP',
-                            ], [
-                                'before' => ['false', 'true'],
-                                'after' => 'Symfony\Component\Yaml\Yaml::PARSE_OBJECT',
-                            ], [
-                                'before' => 'false',
-                                'after' => 0,
-                            ], [
-                                'before' => 'true',
-                                'after' => 'Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE',
-                            ]],
+                            1 => [
+                                [
+                                    'before' => [false, false, true],
+                                    'after' => 'Symfony\Component\Yaml\Yaml::PARSE_OBJECT_FOR_MAP',
+                                ], [
+                                    'before' => [false, true],
+                                    'after' => 'Symfony\Component\Yaml\Yaml::PARSE_OBJECT',
+                                ], [
+                                    'before' => false,
+                                    'after' => 0,
+                                ], [
+                                    'before' => true,
+                                    'after' => 'Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE',
+                                ],
+                            ],
                         ],
                         'dump' => [
-                            3 => [[
-                                'before' => ['false', 'true'],
-                                'after' => 'Symfony\Component\Yaml\Yaml::DUMP_OBJECT',
-                            ], [
-                                'before' => 'true',
-                                'after' => 'Symfony\Component\Yaml\Yaml::DUMP_EXCEPTION_ON_INVALID_TYPE',
-                            ]],
+                            3 => [
+                                [
+                                    'before' => [false, true],
+                                    'after' => 'Symfony\Component\Yaml\Yaml::DUMP_OBJECT',
+                                ], [
+                                    'before' => true,
+                                    'after' => 'Symfony\Component\Yaml\Yaml::DUMP_EXCEPTION_ON_INVALID_TYPE',
+                                ],
+                            ],
                         ],
                     ],
                 ],

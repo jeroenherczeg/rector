@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\PhpParser\Parser;
+declare(strict_types=1);
+
+namespace Rector\Core\PhpParser\Parser;
 
 use PhpParser\Lexer;
 use PhpParser\Lexer\Emulative;

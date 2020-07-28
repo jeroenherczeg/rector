@@ -1,16 +1,18 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\FileSystem;
+declare(strict_types=1);
+
+namespace Rector\Core\FileSystem;
 
 use Nette\Utils\Strings;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
-use Symplify\PackageBuilder\FileSystem\FileSystem;
-use Symplify\PackageBuilder\FileSystem\FinderSanitizer;
-use Symplify\PackageBuilder\FileSystem\SmartFileInfo;
+use Symplify\SmartFileSystem\FileSystemFilter;
+use Symplify\SmartFileSystem\Finder\FinderSanitizer;
+use Symplify\SmartFileSystem\SmartFileInfo;
 
 /**
- * @see \Rector\Tests\FileSystem\FilesFinder\FilesFinderTest
+ * @see \Rector\Core\Tests\FileSystem\FilesFinder\FilesFinderTest
  */
 final class FilesFinder
 {
@@ -35,9 +37,9 @@ final class FilesFinder
     private $finderSanitizer;
 
     /**
-     * @var FileSystem
+     * @var FileSystemFilter
      */
-    private $fileSystem;
+    private $fileSystemFilter;
 
     /**
      * @param string[] $excludePaths
@@ -46,12 +48,12 @@ final class FilesFinder
         array $excludePaths,
         FilesystemTweaker $filesystemTweaker,
         FinderSanitizer $finderSanitizer,
-        FileSystem $fileSystem
+        FileSystemFilter $fileSystemFilter
     ) {
         $this->excludePaths = $excludePaths;
         $this->filesystemTweaker = $filesystemTweaker;
         $this->finderSanitizer = $finderSanitizer;
-        $this->fileSystem = $fileSystem;
+        $this->fileSystemFilter = $fileSystemFilter;
     }
 
     /**
@@ -59,14 +61,15 @@ final class FilesFinder
      * @param string[] $suffixes
      * @return SmartFileInfo[]
      */
-    public function findInDirectoriesAndFiles(array $source, array $suffixes): array
+    public function findInDirectoriesAndFiles(array $source, array $suffixes, bool $matchDiff = false): array
     {
-        $cacheKey = md5(serialize($source) . serialize($suffixes));
+        $cacheKey = md5(serialize($source) . serialize($suffixes) . (int) $matchDiff);
         if (isset($this->fileInfosBySourceAndSuffixes[$cacheKey])) {
             return $this->fileInfosBySourceAndSuffixes[$cacheKey];
         }
 
-        [$files, $directories] = $this->fileSystem->separateFilesAndDirectories($source);
+        $files = $this->fileSystemFilter->filterFiles($source);
+        $directories = $this->fileSystemFilter->filterDirectories($source);
 
         $smartFileInfos = [];
         foreach ($files as $file) {
@@ -74,6 +77,18 @@ final class FilesFinder
         }
 
         $smartFileInfos = array_merge($smartFileInfos, $this->findInDirectories($directories, $suffixes));
+
+        if ($matchDiff) {
+            $gitDiffFiles = $this->getGitDiff();
+
+            $smartFileInfos = array_filter($smartFileInfos, function (SmartFileInfo $fileInfo) use (
+                $gitDiffFiles
+            ): bool {
+                return in_array($fileInfo->getRealPath(), $gitDiffFiles, true);
+            });
+
+            $smartFileInfos = array_values($smartFileInfos);
+        }
 
         return $this->fileInfosBySourceAndSuffixes[$cacheKey] = $smartFileInfos;
     }
@@ -97,6 +112,7 @@ final class FilesFinder
         $suffixesPattern = $this->normalizeSuffixesToPattern($suffixes);
 
         $finder = Finder::create()
+            ->followLinks()
             ->files()
             ->in($absoluteDirectories)
             ->name($suffixesPattern)
@@ -105,6 +121,17 @@ final class FilesFinder
         $this->addFilterWithExcludedPaths($finder);
 
         return $this->finderSanitizer->sanitize($finder);
+    }
+
+    /**
+     * @return string[] The absolute path to the file matching the git diff shell command.
+     */
+    private function getGitDiff(): array
+    {
+        $plainDiff = shell_exec('git diff --name-only') ?: '';
+        $relativePaths = explode(PHP_EOL, trim($plainDiff));
+
+        return array_values(array_filter(array_map('realpath', $relativePaths)));
     }
 
     /**
@@ -124,14 +151,21 @@ final class FilesFinder
         }
 
         $finder->filter(function (SplFileInfo $splFileInfo): bool {
+            /** @var string|false $realPath */
+            $realPath = $splFileInfo->getRealPath();
+            if (! $realPath) {
+                //dead symlink
+                return false;
+            }
+
             // return false to remove file
             foreach ($this->excludePaths as $excludePath) {
-                if (Strings::match($splFileInfo->getRealPath(), '#' . preg_quote($excludePath, '#') . '#')) {
+                if (Strings::match($realPath, '#' . preg_quote($excludePath, '#') . '#')) {
                     return false;
                 }
 
                 $excludePath = $this->normalizeForFnmatch($excludePath);
-                if (fnmatch($excludePath, $splFileInfo->getRealPath())) {
+                if (fnmatch($excludePath, $realPath)) {
                     return false;
                 }
             }

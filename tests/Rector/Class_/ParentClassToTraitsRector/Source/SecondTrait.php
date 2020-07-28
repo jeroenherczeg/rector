@@ -1,6 +1,8 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Rector\Tests\Rector\Class_\ParentClassToTraitsRector\Source;
+declare(strict_types=1);
+
+namespace Rector\Core\Tests\Rector\Class_\ParentClassToTraitsRector\Source;
 
 trait SecondTrait
 {
